@@ -151,9 +151,18 @@ function _update()
 end
 
 function drawgameover()
-	cls(6)
-	print("you scored " .. score, 10, 30, 7)
-	print("good job!", 10, 48, 7)
+	cls(2)
+	printcenter("you scored " .. score, 64, 30, 7)
+	local judgement = "good effort!"
+	if score > 250 then
+		judgement = "wow! good job!!"
+	elseif score > 200 then
+		judgement = "great work!"
+	elseif score > 150 then
+		judgement = "nice!"
+	end
+	printcenter(judgement, 64, 40, 7)
+	printcenter("press —/Ž to restart", 60, 100, 7)
 end
 
 function _draw()
@@ -211,6 +220,11 @@ function _draw()
 	end
 	print("‹”ƒ‘ move cursor", mxpos, 112, 7)
 	print(selectstring, mxpos, 120, selectcolor)
+end
+
+function printcenter(s,x,y,c)
+	local tx = x - ((#s * 4)/2)
+	print(s, tx, y, c)
 end
 
 -- swaps tiles (x0,y0) (x1,y1)
