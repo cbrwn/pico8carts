@@ -89,7 +89,7 @@ function moveball()
 	local prog = dfl / dba
 	progress = prog
 	
-	ball.y = (cos(prog) * 20) + 64
+	ball.y = (abs(cos(prog/2)) * 20) + 64
 	
 	-- we know we jumped when prog
 	-- is back to 0
