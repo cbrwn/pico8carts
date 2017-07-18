@@ -6,6 +6,7 @@ __lua__
 
 gamestate = 0
 
+-- game stuff
 destpos = 0.13
 ballspeed = 3
 startspeed = 2
@@ -15,8 +16,13 @@ mousecontrol = true
 pdistance = 0.3
 pspawn = 1.5
 
+-- misc stuff
+ctextwidth=5
+
 function _init()
 	platforms = {}
+	-- make sure the first platform
+	-- is under the ball
 	platforms[1] = platform(64, 60, destpos, 5, 12) 
 	
 	ball = {x=64,y=24,s=10,c=7}
@@ -37,7 +43,7 @@ end
 
 function _draw()
 	cls(0)
-	
+	-- check states first
 	if gamestate == 0 then
 		drawmenu()
 		return
@@ -46,10 +52,12 @@ function _draw()
 		return
 	end
 	
+	-- draw all the platforms
 	for i=1,#platforms do
 		drawplatform(platforms[i])
 	end
 	
+	-- todo: make ball pretty
 	circfill(ball.x, ball.y, ball.s, ball.c)
 	
 	if mousecontrol then
@@ -63,7 +71,8 @@ function _draw()
 		print("–" .. movespeed, 2, 20, 7)
 	end
 	
-	printcenter(score.."", 64, 13, 7)
+	-- big score text
+	drawnumbercenter(score.."", 61, -4, 3)
 	
 	-- start text
 	printcenter("— to go!", 64 - 2, starttexty, 7)
@@ -109,6 +118,7 @@ function drawgameover()
 end
 
 function _update()
+	-- check states before continuing
 	if gamestate == 0 then
 		updatemenu()
 		return
@@ -117,26 +127,31 @@ function _update()
 		return
 	end
 	
-	-- start text
+	-- start text movement
 	local destpos = 160
 	if movespeed == 0 and not gameover then
 	destpos = 110
 	end
 	starttexty -= (starttexty - destpos) * 0.1
 	
+	-- ugly way of starting game
 	if movespeed == 0 and not gameover and btnp(5) then
 		movespeed = startspeed
 	end
 	
 	for i=1,#platforms do
 		local p = platforms[i]
+		-- platforms can be nil apparently
 		if p == nil then
 			break
 		end
+		-- move all the platforms
 		local bd = p.d
 		p.d -= (movespeed/100)
 		
-		-- delete unneeded platform
+		-- delete platform when it
+		-- becomes older than the
+		-- most recently jumped one
 		if p.d < pastplat() then
 			del(platforms, p)
 		end
@@ -152,28 +167,52 @@ end
 
 function updatemenu()
 	if btnp(4) then
+		-- let's play!
 		_init()
 		gamestate = 1
 	end
 	if btnp(5) then
+		-- toggle mouse control
 		mousecontrol = not mousecontrol
 	end
 end
 
 function updategameover()
 	if btnp(4) then
+		-- try again
 		_init()
 		gamestate = 1
 	end
 	if btnp(5) then
+		-- back to menu
 		gamestate = 0
 	end
 end
 
+-- makes a line using two points
+-- shorter than 4 coordinates
+function linepoints(p1,p2,c)
+	line(p1.x,p1.y,p2.x,p2.y,c)
+end
+
+-- prints a string and puts
+-- the center at x
+function printcenter(s,x,y,c)
+	print(s, x - ((#s * 4)/2), y, c)
+end
+
+--===========================--
+--          ball stuff
+--===========================--
+
+-- deals with all ball movement
 function moveball()
 	if gameover then
+		-- drop down on lose
 		ball.y += 6
 		if ball.y >= 210 then
+			-- move to gameover
+			-- once it's off screen
 			gamestate = 2
 		end
 		return
@@ -203,6 +242,7 @@ function moveball()
 			movespeed = 0
 			sfx(1)
 			gameover = true
+			return
 		end
 	end
 	lastprog=prog
@@ -215,61 +255,32 @@ function moveball()
 	end
 end
 
+-- called when ball lands on
+-- a platform
 function balljumped()
 	sfx(0)
 	movespeed += 0.01
 	score += 1
 end
 
-function pastplat()
-	local result = -1
-	for i=1,#platforms do
-		local p = platforms[i]
-		if p.d < destpos and p.d > result then
-			result = p.d
-		end
-	end
-	return result
+--===========================--
+--       platform stuff
+--===========================--
+
+-- makes platform
+-- d = distance, s = size
+function platform(x,y,d,s,c)
+	return {x = x,y = y,d = d,s = s,c = c}
 end
 
-function nextplat()
-	local result = 1
-	for i=1,#platforms do
-		local p = platforms[i]
-		if p.d >= destpos and p.d < result then
-			result = p.d
-		end
-	end
-	return result
-end
-
-function furthestplat()
-	local result = -1
-	for i=1,#platforms do
-		local p = platforms[i]
-		if p.d > result then
-			result = p.d
-		end
-	end
-	return result
-end
-
-function cplat()
-	result = {d=999}
-	for i=1,#platforms do
-		local p = platforms[i]
-		if abs(p.d - destpos) < abs(result.d - destpos) then
-			result = p
-		end
-	end
-	return result
-end
-
+-- default platform used for testing
 function defaultplatform(d)
 	local b = 50
 	return platform(64 + (-(b/2) + rnd(b)), 60, d, 5, 12)
 end
 
+-- draws a platform
+-- approximates what it should look like
 function drawplatform(p)
 	if(p.d <= 0.01) return
 	local persp = 0.6
@@ -304,18 +315,86 @@ function drawplatform(p)
 	end
 end
 
-function linepoints(p1,p2,c)
-	line(p1.x,p1.y,p2.x,p2.y,c)
+-- gets the closest platform's distance
+function cplat()
+	result = {d=999}
+	for i=1,#platforms do
+		local p = platforms[i]
+		if abs(p.d - destpos) < abs(result.d - destpos) then
+			result = p
+		end
+	end
+	return result
 end
 
-function printcenter(s,x,y,c)
-	print(s, x - ((#s * 4)/2), y, c)
+-- gets the furthest away platform's distance
+-- only forwards, not back
+function furthestplat()
+	local result = -1
+	for i=1,#platforms do
+		local p = platforms[i]
+		if p.d > result then
+			result = p.d
+		end
+	end
+	return result
 end
 
--- makes platform
--- d = distance, s = size
-function platform(x,y,d,s,c)
-	return {x = x,y = y,d = d,s = s,c = c}
+-- gets the distance of the next
+-- platform to jump on
+-- (closest in front)
+function nextplat()
+	local result = 1
+	for i=1,#platforms do
+		local p = platforms[i]
+		if p.d >= destpos and p.d < result then
+			result = p.d
+		end
+	end
+	return result
+end
+
+-- gets the distance of the most
+-- recently passed platform
+-- (closest behind)
+function pastplat()
+	local result = -1
+	for i=1,#platforms do
+		local p = platforms[i]
+		if p.d < destpos and p.d > result then
+			result = p.d
+		end
+	end
+	return result
+end
+
+--===========================--
+--     custom text stuff
+--===========================--
+
+-- draws a number using the
+-- sprites in the spritesheet
+function drawnumber(n,x,y,s)
+	local size = s*8
+	for i=1,#n do
+		local dig = sub(n,i,i) + 0
+		drawdigit(dig,x + ((i-1)*(ctextwidth * s)), y, size, size)
+	end
+end
+
+-- drawnumber but centered (kinda)
+function drawnumbercenter(n,x,y,s)
+	local cw = (ctextwidth * #n) * s
+	drawnumber(n, x - (cw/2),y,s)
+end
+
+-- draws a single digit from 
+-- spritesheet
+function drawdigit(n,x,y,w,h)
+	local idx = 48 + n
+	local ys = flr(idx/16)
+	local xs = idx - (16 * ys)
+	sspr(xs*8,ys*8,8,8,x,y,w,h)
 end
 __gfx__
 00000000000000001111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -344,11 +423,11 @@ __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00777700000770000077770000077700007007000077770000777700000777000077770000777700000000000000000000000000000000000000000000000000
+00700700000070000000070000000700007007000070000000700000000007000070070000700700000000000000000000000000000000000000000000000000
+00700700000070000077770000007700007777000077770000777700000007000077770000777700000000000000000000000000000000000000000000000000
+00700700000070000070000000000700000007000000070000700700000007000070070000000700000000000000000000000000000000000000000000000000
+00777700000070000077770000077700000007000077770000777700000007000077770000777700000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
