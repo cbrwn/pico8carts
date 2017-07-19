@@ -39,6 +39,12 @@ function _init()
 	end
 	
 	starttexty = 130
+	
+	gamestate=2
+ score = 80
+	
+	-- gameover screen stuff
+	goscreen={sx=35,sy=-100,ox=64,oy=200,ty=-100, mx=300}
 end
 
 function _draw()
@@ -68,14 +74,8 @@ function _draw()
 		spr(1, ball.x - 4, 114)
 	end
 	
-	if false then
-		print("#" .. #platforms, 2, 2, 7)
-		print("“" .. flr(progress*100) .. "%", 2, 12, 7)
-		print("–" .. movespeed, 2, 20, 7)
-	end
-	
 	-- big score text
-	drawnumbercenter(score.."", 61, -4, 3)
+	drawnumbercenter(score.."", 61, -2, 3)
 	
 	-- start text
 	printcenter("— to go!", 64 - 2, starttexty, 7)
@@ -124,12 +124,45 @@ function drawbackground(height,col)
 end
 
 function drawgameover()
-	printcenter("game over!", 64, 32, 7)
+	drawbackground(40, 1)
+	-- — goes to menu
+	-- Ž tries again
+	-- goscreen.sx/y = score pos
+	-- goscreen.ox/y = option pos
+	-- todo: move logic to update
+	local sdy = 6
+	local sty = sdy-1
+	local soy = 96
+	local smx = 64
+	goscreen.sy -= (goscreen.sy - sdy) * 0.2
+	goscreen.ty -= (goscreen.ty - sty) * 0.1
+	goscreen.oy -= (goscreen.oy - soy) * 0.14
+	goscreen.mx -= (goscreen.mx - smx) * 0.08
 	
-	local xoff = 32
-	local yoff = 64
-	print("Ž to try again", xoff, yoff, 8)
-	print("— to return to menu", xoff, yoff+8, 7)
+	-- score box
+	local bw,bh = 59,36
+	rectfill(goscreen.sx, goscreen.sy, goscreen.sx + bw, goscreen.sy + bh, 2)
+	printcenter("your score", goscreen.sx + bw/2 + 1, goscreen.sy + 3, 7)
+	drawnumbercenter(score.."", goscreen.sx + (bw/2) - 5, goscreen.ty + 5, 4)
+	
+	-- medal
+	local medalindex = 11
+	
+	if(score>100) medalindex=10
+	if(score>200) medalindex=9
+	
+	--bronze medal shows over 30
+	if score > 30 then
+		spr(medalindex,goscreen.mx-4,61)
+		local mtype = "bronze"
+		if(medalindex==10)mtype="silver"
+		if(medalindex==9)mtype="*gold*"
+		printcenter("you earned a " .. mtype .. " medal!", goscreen.mx, 71, 7)
+	end
+	
+	-- options
+	printcenter("press Ž to try again", goscreen.ox - 2, goscreen.oy, 7)
+	printcenter("or — to go to menu", goscreen.ox - 2, goscreen.oy + 6, 7)
 end
 
 function _update()
