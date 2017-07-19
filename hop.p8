@@ -255,9 +255,16 @@ function moveball()
 	end
 	lastprog=prog
 	
+	local aspeed = ballspeed
+	
+	-- hold a button to speed up
+	if btn(4) or btn(5) then
+		aspeed = ballspeed * 2
+	end
+	
 	if not mousecontrol then
-		if(btn(0))ball.x-=ballspeed
-		if(btn(1))ball.x+=ballspeed
+		if(btn(0))ball.x-=aspeed
+		if(btn(1))ball.x+=aspeed
 	else
 		ball.x = stat(32)
 	end
