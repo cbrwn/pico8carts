@@ -72,6 +72,10 @@ function _init()
 	movedown()
 end
 
+--==========
+-- updates!
+--==========
+
 function _update60()
 	if gameover or abs(gotweendest-gotween)>2 then
 		updategameover()
@@ -160,225 +164,11 @@ function _update60()
 	
 	updateballs()
 	if speedup then
+		-- update twice for 2x speed
 		updateballs()
 	end
 	updateboxes()
 	updatepickups()
-end
-
-function _draw()
-	cls(1)
-	
-	if screenshake>0 then
-		local ssamt=1
-		camera(rnd(ssamt*2)-ssamt,rnd(ssamt*2)-ssamt)
-		screenshake -= 1
-	else
-		camera()
-	end
-	
-	-- draw balls when there are some
-	for i=1,#balls do
-		local thisball = balls[i]
-		
-		circfill(thisball.x, thisball.y, ballsize, 7)
-	end
-	
-	-- show the shoot position
-	if ballstoshoot > 0 or readytoshoot then
-		circfill(shootpos.x, shootpos.y, ballsize,7)
-	end
-	
-	-- show where ball landed
-	if shooting and landed then
-		circfill(newshootpos.x, newshootpos.y, ballsize, 7)
-	end
-	
-	-- boxes
-	drawboxes()
-	-- pickups
-	drawpickups()
-	
-	-- ball counter text
-	local bcount=ballcount
-	if(shooting)bcount=ballstoshoot
-	if bcount>0 then
-		-- move it out of the way
-		-- (sometimes)
-		local hpos=shootpos.x+ballsize*2
-		local lpos=shootpos.x-(ballsize*2 + 12)
-		local cpos=hpos
-		local vpos=shootpos.y-5
-		if(shootangle<=60)cpos=lpos
-		if(hpos+13>=playwidth)cpos=lpos
-		if(cpos<=0)cpos=hpos
-		
-		print("x"..bcount,cpos,vpos,7)
-		
-		if putime>0 and newpicks>0 then
-			print("+"..newpicks,cpos+4,vpos-10 + (putime/10),3)
-		end
-	end
-	
-	-- show angle indicator
-	if readytoshoot then
-		local length=shootlength
-		
-		local xm,ym=cos(shootangle/360),sin(shootangle/360)
-		for l=0,length,(length/6) do
-			circfill(shootpos.x+xm*l,shootpos.y+ym*l,2 - ((l/length)*2),7)
-		end
-	end
-	
-	camera()
-	-- right side hud
-	drawhud()
-	
-	-- debug stuff
-	if debugtext then
-		print(">" .. shootangle.." @ " .. shootlength, 2, 2, 7)
-		local shoottext = "aim"
-		if(shooting)shoottext="shooting!" .. " #" .. #balls .. "(" .. ballsinplay .. "/" .. ballstoshoot .. ")"
-		print("ï¿½" .. shoottext, 2, 10, 7)
-		local mem=flr(stat(0))
-		local cpu=flr(stat(1)*100)
-		print("m:"..mem.." c:"..cpu.."%", 2, 18, 7)
-	end
-	
-	-- game over screen can go on
-	-- top of everything
-	if gotween!=0 then
-		drawgameover()
-	end
-end
-
-function drawhud()
-	rectfill(playwidth,0,128,128,0)
-	rectfill(playwidth+1, 0, 128, 128, 5)
-	
-	-- title 
-	local title="ballz"
-	local titx=playwidth+(hudwidth/2)-13
-	for i=1,#title do
-		local cl=titlecols[i]
-		local yp = 4
-		local xp = titx+(i*4)
-		printshadow(sub(title,i,i),xp,yp,cl,1)
-		local linec=titlecols[(i+titlerotate)%#title+1]
-		line(xp, yp+7,xp+3,yp+7,linec)
-	end
-	
-	-- score
-	local mdl=(playwidth+hudwidth/2)+1
-	local vof=scorejump
-	printshadowcenter("score", mdl,21-vof,7,1)
-	local scoretext=turncount..""
-	printshadowcenter(scoretext,mdl,28-vof,7,1)
-	line(mdl-(#scoretext)-2, 32-vof, mdl+(#scoretext), 32-vof)
-	-- hiscore
-	local thscore=hiscore
-	local hsv=0
-	if turncount > hiscore then
-		hsv=scorejump
-		thscore=turncount
-	end
-	printshadowcenter("best", mdl, 39-hsv,7,1)
-	printshadowcenter(thscore.."", mdl, 46-hsv,7,1)
-	
-	-- speed indicator
-	vof=4
-	local hof=7+spslide
-	spr(3,playwidth+hof,80+vof)
-	printshadow("2x", playwidth+hof+15,78+vof,7,1)
-	printshadow("speed", playwidth+hof+9,85+vof,7,1)
-	
-	-- controls
-	local tcol=7
-	local aimy=104
-	if(btn(0))tcol=11 else tcol=7
-	printshadow("‹", playwidth+2,aimy,tcol,1)
-	if(btn(1))tcol=11 else tcol=7
-	printshadow("‘", playwidth+12,aimy,tcol,1)
-	printshadow("aim", 115, aimy, 7, 1)
-	
-	local shooty=97
-	if(btn(5))tcol=11 else tcol=7
-	printshadow("—", playwidth+7,shooty,tcol,1)
-	printshadow("shoot",107,shooty,7,1)
-	
-	-- footer
-	line(playwidth+1,111,128,111,7)
-	line(playwidth+1,112,128,112,1)
-	printshadow("@z6v",playwidth+14,114,12,1)
-	printshadow("cmrn.io",playwidth + 9,121,7,1)
-end
-
-function updategameover()
-	gotween -= (gotween - gotweendest) * 0.1
-	if btnp(4) then
-		gameover=false
-		_init()
-	end
-end
-
-function drawgameover()
-	local topweight=0.7
-	local topoffx=gotween-128
-	rectfill(topoffx, 0, topoffx+128,128*topweight,12)
-	printcenter("game over", topoffx+64,35,7)
-	printcenter("your score was "..turncount.."!", topoffx+64,42,7)
-	if newhiscore then
-		printcenter("that's a new high score!!", topoffx+64,50,7)
-	end
-	
-	local botoffx=-gotween + 128
-	rectfill(botoffx, 128*topweight+1,botoffx+128,128,5)
-	printcenter("press Ž to play again", botoffx+64,110,7)
-end
-
-function shoot()
-		readytoshoot = false
-		shooting=true
-		
-		ballstoshoot=ballcount
-		ballsinplay=0
-		
-		shottimer=0
-		landed=false
-		newshootpos={x=0,y=0}
-		
-		speedtimer=600
-end
-
-function newturn()
-	-- make sure shootpos is
-	-- inside bounds
-	if(shootpos.x-ballsize<0)shootpos.x=ballsize+1
-	if(shootpos.x+ballsize>playwidth)shootpos.x=playwidth-(ballsize+1)
-	
-	-- new balls indicator
-	newpicks=0
-	for p in all(pickups) do
-		if(not p.a)newpicks+=1
-	end
-	putime=60
-	
-	turncount += 1
-	scorejump=3
-	shootangle=90
-	makerow()
-	movedown()
-	sfx(1)
-end
-
-function losegame()
-	gameover=true
-	gotweendest=128
-	
-	if turncount>hiscore then
-		dset(0,turncount)
-		newhiscore=true
-	end
 end
 
 local bspeed=0.15
@@ -502,28 +292,104 @@ function updatepickups()
 	end
 end
 
+function updategameover()
+	gotween -= (gotween - gotweendest) * 0.1
+	if btnp(4) then
+		gameover=false
+		_init()
+	end
+end
+
+--==========
+-- drawing!
+--==========
+
+function _draw()
+	cls(1)
+	
+	if screenshake>0 then
+		local ssamt=1
+		camera(rnd(ssamt*2)-ssamt,rnd(ssamt*2)-ssamt)
+		screenshake -= 1
+	else
+		camera()
+	end
+	
+	-- draw balls when there are some
+	for i=1,#balls do
+		local thisball = balls[i]
+		drawball(thisball)
+	end
+	
+	-- show the shoot position
+	if ballstoshoot > 0 or readytoshoot then
+		circfill(shootpos.x, shootpos.y, ballsize,7)
+	end
+	
+	-- show where ball landed
+	if shooting and landed then
+		circfill(newshootpos.x, newshootpos.y, ballsize, 7)
+	end
+	
+	-- boxes
+	drawboxes()
+	-- pickups
+	drawpickups()
+	
+	-- ball counter text
+	local bcount=ballcount
+	if(shooting)bcount=ballstoshoot
+	if bcount>0 then
+		-- move it out of the way
+		-- (sometimes)
+		local hpos=shootpos.x+ballsize*2
+		local lpos=shootpos.x-(ballsize*2 + 12)
+		local cpos=hpos
+		local vpos=shootpos.y-5
+		if(shootangle<=60)cpos=lpos
+		if(hpos+13>=playwidth)cpos=lpos
+		if(cpos<=0)cpos=hpos
+		
+		print("x"..bcount,cpos,vpos,7)
+		
+		if putime>0 and newpicks>0 then
+			print("+"..newpicks,cpos+4,vpos-10 + (putime/10),3)
+		end
+	end
+	
+	-- show angle indicator
+	if readytoshoot then
+		local length=shootlength
+		
+		local xm,ym=cos(shootangle/360),sin(shootangle/360)
+		for l=0,length,(length/6) do
+			circfill(shootpos.x+xm*l,shootpos.y+ym*l,2 - ((l/length)*2),7)
+		end
+	end
+	
+	camera()
+	-- right side hud
+	drawhud()
+
+	-- game over screen can go on
+	-- top of everything
+	if gotween!=0 then
+		drawgameover()
+	end
+end
+
+function drawball(b)
+	circfill(b.x,b.y,ballsize,7)
+end
+
 function drawboxes()
 	for b in all(boxes) do
 		local bcol=getboxcolor(b)
-		if debugtext then
-			for e in all(getboxedges(b)) do
-				line(e[1].x,e[1].y,e[2].x,e[2].y,bcol)
-			end
-		else
-			rectfill(b.x, b.y, b.x+boxsize, b.y+boxsize, bcol)
-		end
+		rectfill(b.x, b.y, b.x+boxsize, b.y+boxsize, bcol)
 		local tcol=0
 		if(bcol<6)tcol=7
 		printcenter(b.hp .. "", b.x+boxsize/2 + 1, b.y+boxsize/2, tcol)
 	end
-end
-
--- colours will loop through in
--- this order
-cols={13,2,14,8,9,10,15,7,6,5,3,11,12}
-function getboxcolor(b)
-	-- this is ugly
-	return cols[((b.hp-1)%#cols)+1]
 end
 
 local pickpulse=0
@@ -538,6 +404,103 @@ function drawpickups()
 			circfill(p.x,p.y,2,3)		
 		end
 	end
+end
+
+-- hud
+function drawhud()
+	rectfill(playwidth,0,128,128,0)
+	rectfill(playwidth+1, 0, 128, 128, 5)
+	
+	-- title 
+	local title="ballz"
+	local titx=playwidth+(hudwidth/2)-13
+	for i=1,#title do
+		local cl=titlecols[i]
+		local yp = 4
+		local xp = titx+(i*4)
+		printshadow(sub(title,i,i),xp,yp,cl,1)
+		local linec=titlecols[(i+titlerotate)%#title+1]
+		line(xp, yp+7,xp+3,yp+7,linec)
+	end
+	
+	-- score
+	local mdl=(playwidth+hudwidth/2)+1
+	local vof=scorejump
+	printshadowcenter("score", mdl,21-vof,7,1)
+	local scoretext=turncount..""
+	printshadowcenter(scoretext,mdl,28-vof,7,1)
+	line(mdl-(#scoretext)-2, 32-vof, mdl+(#scoretext), 32-vof)
+	-- hiscore
+	local thscore=hiscore
+	local hsv=0
+	if turncount > hiscore then
+		hsv=scorejump
+		thscore=turncount
+	end
+	printshadowcenter("best", mdl, 39-hsv,7,1)
+	printshadowcenter(thscore.."", mdl, 46-hsv,7,1)
+	
+	-- speed indicator
+	vof=4
+	local hof=7+spslide
+	spr(3,playwidth+hof,80+vof)
+	printshadow("2x", playwidth+hof+15,78+vof,7,1)
+	printshadow("speed", playwidth+hof+9,85+vof,7,1)
+	
+	-- controls
+	local tcol=7
+	local aimy=104
+	if(btn(0))tcol=11 else tcol=7
+	printshadow("‹", playwidth+2,aimy,tcol,1)
+	if(btn(1))tcol=11 else tcol=7
+	printshadow("‘", playwidth+12,aimy,tcol,1)
+	printshadow("aim", 115, aimy, 7, 1)
+	
+	local shooty=97
+	if(btn(5))tcol=11 else tcol=7
+	printshadow("—", playwidth+7,shooty,tcol,1)
+	printshadow("shoot",107,shooty,7,1)
+	
+	-- footer
+	line(playwidth+1,111,128,111,7)
+	line(playwidth+1,112,128,112,1)
+	printshadow("@z6v",playwidth+14,114,12,1)
+	printshadow("cmrn.io",playwidth + 9,121,7,1)
+end
+
+-- game over screen
+function drawgameover()
+	local topweight=0.7
+	local topoffx=gotween-128
+	rectfill(topoffx,0,topoffx+128,128*topweight,12)
+	printcenter("game over",topoffx+64,35,7)
+	printcenter("your score was "..turncount.."!",topoffx+64,42,7)
+	if newhiscore then
+		printcenter("that's a new high score!!",topoffx+64,50,7)
+	end
+	
+	local botoffx=-gotween+128
+	rectfill(botoffx,128*topweight+1,botoffx+128,128,5)
+	printcenter("press Ž to play again",botoffx+64,110,7)
+end
+
+--====================
+-- general game stuff
+--====================
+
+-- initiates shootage
+function shoot()
+		readytoshoot = false
+		shooting=true
+		
+		ballstoshoot=ballcount
+		ballsinplay=0
+		
+		shottimer=0
+		landed=false
+		newshootpos={x=0,y=0}
+		
+		speedtimer=600
 end
 
 function makerow()
@@ -570,6 +533,7 @@ function makerow()
 	firstrow=false
 end
 
+-- moves boxes/pickups down a row
 function movedown()
 	local mov=boxsize+boxpadding
 	for b in all(boxes) do
@@ -578,6 +542,45 @@ function movedown()
 	for p in all(pickups) do
 		p.dy+=mov
 	end
+end
+
+function newturn()
+	-- make sure shootpos is
+	-- inside bounds
+	if(shootpos.x-ballsize<0)shootpos.x=ballsize+1
+	if(shootpos.x+ballsize>playwidth)shootpos.x=playwidth-(ballsize+1)
+	
+	-- new balls indicator
+	newpicks=0
+	for p in all(pickups) do
+		if(not p.a)newpicks+=1
+	end
+	putime=60
+	
+	turncount += 1
+	scorejump=3
+	shootangle=90
+	makerow()
+	movedown()
+	sfx(1)
+end
+
+function losegame()
+	gameover=true
+	gotweendest=128
+	
+	if turncount>hiscore then
+		dset(0,turncount)
+		newhiscore=true
+	end
+end
+
+--=============
+-- ball object
+--=============
+
+function ball(nx,ny)
+	return {x=nx,y=ny,vx=0,vy=0,kind="ball",a=true}
 end
 
 -- returns a number referring
@@ -613,11 +616,36 @@ function ballcollidebox(bl,bx)
 			end
 		end
 	end
-	
-	-- should have returned something else
+
+	-- no collideroo
 	return 0
 end
 
+--============
+-- box object
+--============
+
+function box(nx,ny,nhp)
+	return {x=nx,y=ny,dx=nx,dy=ny,hp=nhp,kind="box"}
+end
+
+-- colours will loop through in
+-- this order
+cols={13,2,14,8,9,10,15,7,6,5,3,11,12}
+function getboxcolor(b)
+	-- this is ugly
+	return cols[((b.hp-1)%#cols)+1]
+end
+
+--===============
+-- pickup object
+--===============
+
+function pickup(nx,ny)
+	return {x=nx,y=ny,dx=nx,dy=ny,a=true,vy=0}
+end
+
+-- checks if a pickup is colliding with a ball
 function pickupintersect(b,p)
 	if(not p.a)return false
 	-- just do rect intersection
@@ -629,38 +657,18 @@ function pickupintersect(b,p)
 	return true
 end
 
-function magnitude(v)
-	return sqrt((v.x*v.x)+(v.y*v.y))
-end
-
-function normalize(v)
-	local mag = magnitude(v)
-	return {x=v.x/mag,y=v.y/mag}
-end
-
+-- called when ball collides with pickup
 function takepickup(p)
 	ballcount+=1
 	sfx(3)
-	--del(pickups,p)
 	p.a=false
 end
 
--- makes us a ball pls
-function ball(nx,ny)
-	return {x=nx,y=ny,vx=0,vy=0,kind="ball",a=true}
-end
-
--- and a box too
-function box(nx,ny,nhp)
-	return {x=nx,y=ny,dx=nx,dy=ny,hp=nhp,kind="box"}
-end
-
--- ooh maybe a pickup
-function pickup(nx,ny)
-	return {x=nx,y=ny,dx=nx,dy=ny,a=true,vy=0}
-end
-
+--==================
 -- misc useful stuff
+--===================
+
+-- printing
 function printcenter(s,x,y,c)
 	print(s,x-(#s*2),y-2,c)
 end
@@ -673,15 +681,25 @@ end
 function printshadowcenter(s,x,y,c,sc)
 	printshadow(s,x-(#s*2),y-2,c,sc)
 end
+
+-- vector stuff
+function magnitude(v)
+	return sqrt((v.x*v.x)+(v.y*v.y))
+end
+
+function normalize(v)
+	local mag = magnitude(v)
+	return {x=v.x/mag,y=v.y/mag}
+end
 __gfx__
 00000000000000000000000070007000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000077007700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00700700000000000000000077707770000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00077000000000000000000077777777000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00077000000000000000000077777777000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700000000000000000077707770000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000077007700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000070007000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00700700000000000000000077717771000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000077107710000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000071007100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
