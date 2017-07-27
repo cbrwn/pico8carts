@@ -583,96 +583,39 @@ end
 -- returns a number referring
 -- to which side was hit
 function ballcollidebox(bl,bx)
-	if(bl.x+ballsize<bx.x)return 0
-	if(bl.x-ballsize>bx.x+boxsize)return 0
-	if(bl.y+ballsize<bx.y)return 0
-	if(bl.y-ballsize>bx.y+boxsize)return 0
+	local boxcenter={x=(bx.x + boxsize/2),y=(bx.y+boxsize/2)}
 	
-	-- collision is happening!
-	bx.hp -= 1
+	local sz=0.5*(boxsize+ballsize*2)
 	
-	-- test collision against edges
-	local edges=getboxedges(bx)
-	for i=1,#edges do
-		local col=linecircleintersect(edges[i],bl)
-		if col then
-			return i
+	local dx=boxcenter.x-bl.x
+	local dy=boxcenter.y-bl.y
+	
+	if abs(dx)<=sz and abs(dy)<=sz then
+		bx.hp-=1
+		local wy=sz*dy
+		local hx=sz*dx
+		
+		if wy > hx then
+			if wy > -hx then
+				-- top
+				return 1
+			else
+				-- left
+				return 2
+			end
+		else
+			if wy > -hx then
+				-- right
+				return 4
+			else
+				-- bottom
+				return 3
+			end
 		end
 	end
 	
 	-- should have returned something else
-	return -1
-end
-
-function getboxedges(b)
-	local result={}
- local	verts=getboxvertices(b)
- for i=0,#verts-1 do
- 	local ti=i+1 -- this index
- 	local bi=((i+1)%4)+1 -- next index clockwise
- 	
- 	local thisedge={}
- 	-- make a "copy" of the vertices
- 	-- or else we'll actually be modifying
- 	-- the vertices instead of just this edge
- 	thisedge[1]={x=verts[ti].x,y=verts[ti].y}
- 	thisedge[2]={x=verts[bi].x,y=verts[bi].y}
- 	
- 	-- adjust so corners don't exist
- 	local xmid=b.x+boxsize/2
- 	local ymid=b.y+boxsize/2
- 	if thisedge[1].x==thisedge[2].x then
- 		for e in all(thisedge) do
- 			if(e.y<ymid)e.y+=1
- 			if(e.y>ymid)e.y-=1
- 		end
- 	elseif thisedge[1].y==thisedge[2].y then
- 		for e in all(thisedge) do
- 			if(e.x<xmid)e.x+=1
- 			if(e.x>xmid)e.x-=1
- 		end
- 	end
- 	
- 	add(result, thisedge)
- end
-	
-	return result
-end
-
-function getboxvertices(b)
-	local result={}
-	
-	-- topleft
-	result[1]={x=b.x,y=b.y}
-	-- topright
-	result[2]={x=b.x+boxsize,y=b.y}
-	-- bottomright
-	result[3]={x=b.x+boxsize,y=b.y+boxsize}
-	-- bottomleft
-	result[4]={x=b.x,y=b.y+boxsize}
-	
-	return result
-end
-
-function linecircleintersect(l,c)
-	-- get right angle to
-	-- circle pos from line
-	
-	-- vector from line start to circle
-	local s2c={x=c.x-l[1].x,y=c.y-l[1].y}
-	local smag=magnitude(s2c)
-	
-	-- project onto line vector
-	local nl=normalize({x=l[2].x-l[1].x,y=l[2].y-l[1].y})
-	local mp={x=nl.x*smag,y=nl.y*smag}
-	mp.x += l[1].x
-	mp.y += l[1].y
-	
-	-- get distance from mp to circle
-	local m2c={x=c.x-mp.x,y=c.y-mp.y}
-	local md=magnitude(m2c)
-	
-	return md <= ballsize
+	return 0
 end
 
 function pickupintersect(b,p)
