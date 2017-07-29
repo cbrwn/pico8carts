@@ -5,6 +5,7 @@ __lua__
 -- @z6v / cmrn.io
 
 cartdata("larklegume01")
+timer=0
 
 -- player stuff
 thold=false
@@ -35,6 +36,7 @@ function _init()
 	score=0
 	hiscore=dget(0)
 	beanspawntime=0
+	spawninterval=30
 end
 
 function _draw()
@@ -70,6 +72,14 @@ function _draw()
 end
 
 function _update()
+	timer += 1
+	if(timer>=30000)timer=0
+	
+	-- every 5 seconds, make
+	-- spawning faster
+	if timer%(30*5)==0 and spawninterval>0 then
+		spawninterval-=1
+	end
 	-- restart on lose
 	if player.dead and btnp(4) then
 		_init()
@@ -301,15 +311,17 @@ function pointcolor(amt)
 end
 
 function beanhitplayer(b,p)
-	if(b.x>p.x+8)return false
-	if(p.x>b.x+8)return false
-	if(b.y>p.y+8)return false
-	if(p.y>b.y+8)return false
+	-- make bean hitbox a little
+	-- smaller than it should be
+	if(b.x+3>p.x+8)return false
+	if(p.x  >b.x+5)return false
+	if(b.y+3>p.y+8)return false
+	if(p.y  >b.y+5)return false
 	return true
 end
 
 function pointinbean(p,b)
-	if(p.x<b.x)return false
+	if(p.x<b.x  )return false
 	if(p.y<b.y-8)return false
 	if(p.x>b.x+8)return false
 	if(p.y>b.y+8)return false
@@ -344,7 +356,7 @@ function spawnbean()
 	local t=0
 	if(rnd(100)<6)t=1
 	newbean(bx,-10,t)
-	beanspawntime=rnd(30)+30
+	beanspawntime=rnd(30)+spawninterval
 end
 
 function ma(s,x,y)
