@@ -10,6 +10,7 @@ timer=0
 -- player stuff
 thold=false
 movespeed=2
+lickbutton=4
 
 -- constant stuff
 floorheight=120
@@ -24,6 +25,8 @@ function _init()
 	rpr={}
 	particles={}
 	
+	makebackground()
+	
 	-- make all floor segments
 	for i=0,16 do
 		local nf=ma(4,i*8,floorheight)
@@ -31,27 +34,50 @@ function _init()
 		add(a,nf)
 	end
 	
-	player=ma(1,60,floorheight-8)
+	player=ma(1,60,floorheight-9)
 	player.f=true
 	player.dead=false
 	player.wtime=0
+	player.plr=true
 	add(a,player)
 	tongue=nil
 	
+	timer=0
 	score=0
 	hiscore=dget(0)
 	beanspawntime=0
 	superspecialenabled=false
 	spawninterval=30
+	gob=true
+end
+
+function makebackground()
+ backg={}
+ local fin=-flr(rnd(15))
+ while fin<128 do
+  local tb={}
+  tb.w=8+flr(rnd(15))
+  if(tb.w%2!=0)tb.w+=1
+  tb.x=fin-flr(rnd(2))
+  tb.h=13+flr(rnd(80))
+  add(backg,tb)
+  
+  fin=tb.x+tb.w
+ end
 end
 
 function _draw()
 	cls(12)
 	
+	drawbackground()
+	
 	drawtongue()
 	
 	for b in all(a) do
 		if b.a then
+		 if b.plr then
+	   playeroutline()
+		 end
 			spr(b.s,b.x,b.y,1,1,b.f)
 		end
 	end
@@ -84,8 +110,8 @@ function _draw()
 	
 	-- gameover
 	if player.dead then
-		printcenter("game over",64,59,7)
-		printcenter("Ž to restart",62,65,7)
+		printoutlinec("game over",64,59,7)
+		if(gob)printoutlinec("Ž to restart",62,67,7)
 	end
 end
 
@@ -96,6 +122,12 @@ function _update()
 	-- super specials can start spawning
 	-- after 60 seconds
 	if(timer>30*60 and not superspecialenabled)superspecialenabled=true
+	
+	if gob then
+	 if(timer%60==0)gob=false
+	else
+	 if(timer%20==0)gob=true
+	end
 	
 	-- every 5 seconds, make
 	-- spawning faster
@@ -131,7 +163,7 @@ function updateplayer()
 		return
 	end
 	
-	if not btn(5) then
+	if not btn(lickbutton) then
 		-- save that we're not holding
 		thold=false
 		stoptongue()
@@ -176,7 +208,7 @@ function updateplayer()
 		player.s=1
 	end
 	
-	if btn(5) and not thold then
+	if btn(lickbutton) and not thold then
 		thold=true
 		player.s=2
 		local facing=-1
@@ -291,14 +323,29 @@ function updateparticles()
  end
 end
 
+function playeroutline()
+ setpal(0)
+ spr(player.s,player.x-1,player.y,1,1,player.f)
+ spr(player.s,player.x+1,player.y,1,1,player.f)
+ spr(player.s,player.x,player.y+1,1,1,player.f)
+ spr(player.s,player.x,player.y-1,1,1,player.f)
+ setpal()
+end
+
+function setpal(c)
+ for i=0,16 do
+  pal(i,c or i)
+ end
+end
+
 function drawtongue()
 	if(tongue==nil)return
 	
 	-- draw outlines!
 	for o=-1,1 do
 		local col=14
-		if o == -1 or o == 1 then
-			col=1
+		if o != 0 then
+			col=0
 		end
 		line(tongue.x+o,tongue.y,tongue.tip.x+o,tongue.tip.y,col)
 	end
@@ -313,6 +360,15 @@ function drawbeans()
 	end
 end
 
+function drawbackground()
+ local bc=1
+ for b in all(backg) do
+  circfill(b.x+(b.w/2),128-b.h-1,b.w/2,5)
+  circfill(b.x+(b.w/2),128-b.h,b.w/2,bc)
+  rectfill(b.x,128-b.h,b.x+b.w,128,bc)
+ end
+end
+
 function stoptongue()
 	if(tongue!=nil)tongue.e=false
 	sfx(-1,3)
@@ -321,6 +377,7 @@ end
 function killplayer()
 	player.dead=true
 	player.s=17
+	if(tongue!=nil)tongue=nil
 	music(-1)
 end
 
@@ -501,6 +558,20 @@ end
 -- ==================
 
 function printcenter(s,x,y,c)
+	print(s,x-(#s*2),y,c)
+end
+
+function printoutlinec(s,x,y,c,b)
+ local bc=b or 0
+	print(s,x-(#s*2)-1,y,bc)
+	print(s,x-(#s*2)+1,y,bc)
+	print(s,x-(#s*2),y-1,bc)
+	print(s,x-(#s*2),y+1,bc)
+	print(s,x-(#s*2)+1,y+1,bc)
+	print(s,x-(#s*2)-1,y+1,bc)
+	print(s,x-(#s*2)+1,y-1,bc)
+	print(s,x-(#s*2)-1,y-1,bc)
+	
 	print(s,x-(#s*2),y,c)
 end
 
