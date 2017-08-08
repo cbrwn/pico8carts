@@ -48,6 +48,7 @@ function makeplayer()
 	p.f=false--flipped
 	p.ms=1--move speed
 	p.t=0--walk timer for bobbing
+	p.e=0--eating anim
 	p.sprloc={x=8,y=0}
 	p.draw=function()
 		--draw tongue
@@ -65,6 +66,7 @@ function makeplayer()
 		local footpos=5
 		if(p.f)footpos=4
 		sspr(40,p.footsprite,7,3,p.x+footpos,p.y+12,7,3,p.f)
+		--bird sprite
 		sspr(p.sprloc.x,p.sprloc.y,16,14,p.x,p.y+p.wheight,16,14,p.f)
 	end
 	
@@ -103,6 +105,20 @@ function makeplayer()
 			p.t=0
 			p.wheight=0
 		end
+			
+		-- eating anim
+		if p.e>0 then
+			p.e-=1
+			if p.e%5==0 then
+				if p.sprloc.y==0 then
+					p.sprloc.y=16
+				else
+					p.sprloc.y=0
+				end
+			end
+		else
+			p.sprloc.y=0
+		end
 		
 		--bob up and down
 		if p.t > 2 then
@@ -119,11 +135,16 @@ function makeplayer()
 			p.maketongue()
 		end
 		
-		--tiptoe when licking
+		--licking graphics
 		if p.tongue!=nil then
+			--tiptoe
 			p.wheight=-1
-			p.sprloc.x=24
 			p.footsprite=0
+			
+			--open mouth
+			p.sprloc.x=24
+			p.sprloc.y=0
+			p.e=0--dont eat with your mouth open
 		else
 			p.footsprite=4
 			p.sprloc.x=8
@@ -157,6 +178,7 @@ function makeplayer()
 		 	t=nil
 		 	p.tongue=nil
 		 	if lbean != nil then
+		 		p.e=20
 		 		del(actors,lbean)
 		 		del(beans,lbean)
 		 		lbean=nil
@@ -200,6 +222,7 @@ end
 
 function takebean(b)
 	--score popup and stuff :)
+	makepopup(10,b.x,b.y)
 end
 
 function makefloor()
@@ -273,6 +296,29 @@ function makebean(x,y,t,spd)
 	
 	add(beans,b)
 	add(actors,b)
+end
+
+function makepopup(s,x,y)
+	local p={x=x,y=y,t=s}
+	p.cl={8}
+	p.ci=1
+	p.t=0
+	
+	p.draw=function()
+		print(s.."",p.x,p.y,p.cl[p.ci])
+	end
+	
+	p.update=function()
+		p.t+=1
+		
+		if(p.t%3==0)p.ci+=1
+		
+		if(p.ci > #p.cl)p.ci=1
+		
+		if(p.t>=60)del(actors,p)
+	end
+	
+	add(actors,p)
 end
 
 function updategame()
