@@ -277,12 +277,24 @@ end
 
 function fixfloor(n)
 	n=n or 1
-	for f in all(floor) do
-		f.a=true
+	local d=0
+	local amt=0
+	while closestbrokenfloor()!=nil and amt<n do
+		repairfloor(closestbrokenfloor(),amt*15)
+		amt+=1
 	end
 end
 
 function closestbrokenfloor()
+	local f=nil
+	for fl in all(floor) do
+		if fl.a==0 and
+					(f==nil or
+					 abs(f.x-player.x)>abs(fl.x-player.x)) then
+			f=fl 
+		end
+	end
+	return f
 end
 
 --sets score and changes hiscore
@@ -301,11 +313,11 @@ function makefloor()
 	local l=0
 	local fwidth=8
 	while l<128 do
-		local f={x=l,y=120,a=true,s=21}
+		local f={x=l,y=120,a=2,s=21}
 		l+=fwidth
 		
 		f.draw=function()
-			if(f.a)spr(f.s,f.x,f.y)
+			if(f.a==2)spr(f.s,f.x,f.y)
 		end
 		
 		add(floor,f)
@@ -316,7 +328,75 @@ end
 function breakfloor(f)
 	--allow for index too
 	if(type(f)=="number")f=floor[f]
-	f.a=false
+	f.a=0
+end
+
+function repairfloor(f,d)
+	d=d or 0
+	--allow for index
+	if(type(f)=="number")f=floor[f]
+	makerepair(f,d)
+end
+
+function makerepair(f,d,s)
+	s=s or 0
+	d=d or 0
+	
+	local rp={x=f.x,y=-30,d=d,s=s}
+	rp.hf=true--has floor
+	rp.f=f
+	rp.t=0
+	rp.tl=40
+	f.a=1--set floor to repairing
+	
+	local fpos=16
+	
+	rp.draw=function()
+		sspr(64,8,9,16,rp.x,rp.y)
+		
+		--draw floor
+		if rp.hf then
+		 spr(21,rp.x,rp.y+fpos)
+		end
+	end
+	
+	rp.update=function()
+	 local s=-30
+	 local d=f.y-fpos
+	 if not rp.hf then
+	 	--swap dest and start
+	 	-- when going up
+	 	local t=s
+	 	s=d
+	 	d=t
+	 end
+	 
+	 --delay
+	 if rp.d>0 then
+	 	rp.d-=1
+	 	return
+	 end
+	 
+	 rp.t+=1
+	 local per=rp.t/rp.tl
+	 
+	 local yp=cerp(s,d,per)
+	 rp.y=yp
+	 
+	 if per>1 then
+	 	if rp.hf then
+	 		--place floor
+	 		rp.f.a=2
+	 		rp.t=2
+	 		rp.hf=false
+	 	else
+	 		--kill repairman
+	 		del(actors,rp)
+	 	end
+	 end
+	end
+	
+	add(actors,rp)
 end
 
 function makebean(x,y,t,spd)
@@ -324,6 +404,7 @@ function makebean(x,y,t,spd)
 	b.s=0
 	b.spd=spd or 0.5
 	b.t=t
+	b.tm=0
 	b.swingspeed=50+rnd(40)
 	b.a=true
 	
@@ -332,7 +413,7 @@ function makebean(x,y,t,spd)
 	local bc1=11
 	local bc2=3
 	
-	if t==1 then
+	if b.t==1 then
 		sc1=14
 		sc2=8
 		bc1=7
@@ -367,9 +448,9 @@ function makebean(x,y,t,spd)
 	b.update=function()
 		b.y+=b.spd
 		
-		b.t+=1
+		b.tm+=1
 		--sprite swings
-		b.s=sin(b.t/b.swingspeed)+0.5
+		b.s=sin(b.tm/b.swingspeed)+0.5
 		
 		if b.y > 140 then
 			b.delete()
@@ -380,7 +461,7 @@ function makebean(x,y,t,spd)
 		if b.a then
 			--check for floor collision
 			for f in all(floor) do
-				if b.y+7>=f.y and b.x+6>f.x and b.x+2<f.x+8 and f.a then
+				if b.y+7>=f.y and b.x+6>f.x and b.x+2<f.x+8 and f.a==2 then
 				b.delete()
 					breakfloor(f)
 					break
@@ -484,7 +565,7 @@ end
 
 function flooratpoint(p)
 	for f in all(floor) do
-		if f.a then
+		if f.a==2 then
 			if p.x>f.x and
 						p.y>f.y and
 						p.x<=f.x+8 and
@@ -523,6 +604,13 @@ end
 --//////////////////////////////
 
 -- useful functions
+
+-- cubic interpolation
+-- start,destination,time(0..1)
+function cerp(s,d,t)
+	local c=(t*t*(3-2*t))
+	return s+(d-s)*c
+end
 
 function pointinbox(p,x1,y1,w,h)
 	if(p.x<x1)return false
