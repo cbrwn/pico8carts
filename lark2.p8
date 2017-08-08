@@ -259,11 +259,14 @@ end
 
 function takebean(b)
 	b.a=false--disable collision
+ 
+ --bean abilities
+ if(b.t==1)fixfloor()
 	
 	--determine points
  local pts=-1
  for k,v in pairs(pointheights) do
- 	if b.y < v and k > pts then
+ 	if b.y<v and k>pts then
  		pts=k
  	end
  end
@@ -272,6 +275,18 @@ function takebean(b)
 	makepopup(pts,b.x,b.y)
 end
 
+function fixfloor(n)
+	n=n or 1
+	for f in all(floor) do
+		f.a=true
+	end
+end
+
+function closestbrokenfloor()
+end
+
+--sets score and changes hiscore
+-- if new one is reached
 function setscore(n)
  score=n
  if score>hiscore then
