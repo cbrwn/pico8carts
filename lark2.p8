@@ -29,6 +29,11 @@ end
 function _draw()
 	cls()
 	if(gs.draw)gs.draw()
+	
+	if true then
+		print("m:"..stat(0),2,20,7)
+		print("c:"..flr(stat(1)*100).."%",2,30,7)
+	end
 end
 
 function _update60()
