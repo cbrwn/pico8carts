@@ -48,6 +48,7 @@ end
 -- game state start
 --==============================
 
+--game init
 function startgame()
 	gs={}
 	gs.draw=drawgame
@@ -55,15 +56,15 @@ function startgame()
 	
 	settrans(transcolor)
 	
-	bspawnt=0
 	score=0
 	hiscore=dget(1)
 	
 	--difficulty
-	beanint=70
-	beanspd=0.45
+	bspawnt=0--bean spawn timer
+	beanint=70--bean spawn interval
+	beanspd=0.45--bean fall speed
 	playspdmod=2.22--player speed = beanspd*this
-	normstrk=0
+	normstrk=0--normal bean streak
 	
 	actors={}
 	beans={}
@@ -71,17 +72,19 @@ function startgame()
 	makeplayer()
 end
 
+--makes our player!
 function makeplayer()
 	local p={x=56,y=105}
-	p.wheight=0
 	p.tongue=nil
 	p.footsprite=4
+	p.stepsound=0
 	p.f=false--flipped
 	p.ms=1--move speed
 	p.t=0--walk timer for bobbing
+	p.wheight=0--bobbing height
 	p.e=0--eating anim
 	p.dead=false
-	p.sprloc={x=8,y=0}
+	p.sprloc={x=8,y=0}--location of bird sprite
 	p.draw=function()
 		--draw tongue
 		if p.tongue!=nil then
@@ -90,28 +93,31 @@ function makeplayer()
 			
 			--end of tongue
 			local ex=l.t.x-1
-			if(p.f)ex-=7
+			if(p.f)ex-=7--flipped
 			sspr(72,0,10,8,ex,l.t.y-1,10,8,p.f)
 		end
 		
 		--footsies
 		local footpos=5
-		if(p.f)footpos=4
+		if(p.f)footpos=4--flipped
 		sspr(40,p.footsprite,7,3,p.x+footpos,p.y+12,7,3,p.f)
 		--bird sprite
 		sspr(p.sprloc.x,p.sprloc.y,16,14,p.x,p.y+p.wheight,16,14,p.f)
 	end
 	
+	--movement bounds
 	local xmin=0
 	local xmax=128-16
 	
 	p.update=function()
 		if p.dead then
+			--move off screen on death
 			p.y+=0.5
 			return
 		end
-		local m=false
+		local m=false--moving
 		
+		--check if there is floor in front
 		local fc=p.f and p.x+11 or p.x+4
 		local fe=flooratpoint({x=fc,y=p.y+16})
 		
@@ -164,16 +170,19 @@ function makeplayer()
 		end
 		
 		--bob up and down
-		if p.t > 2 then
+		if p.t > 3 then
 			p.t=0
 			if p.wheight==0 then
 				p.wheight=1
+				sfx(p.stepsound)
+				--p.stepsound=(p.stepsound+1)%2
 			else
 				p.wheight=0
+				sfx(1)
 			end
 		end
 		
-		--lickaroo
+		--licking
 		if keypressed(5) then
 			p.maketongue()
 		end
@@ -196,15 +205,21 @@ function makeplayer()
 	
 	p.maketongue=function()
 		if(p.tongue!=nil)return
+		sfx(2,2)--channel 2 so we can stop it
 		
 		local t={x=p.x+1,y=p.y+5}
-		if(p.f)t.x=p.x+14
+		if(p.f)t.x=p.x+14--flipped
 		t.l=0 --length
 		t.ext=true
 		t.spd=flr(4.5*beanspd) --extend speed
 		t.bspd=flr(18*beanspd) --retract speed
-	 t.t={x=t.x,y=t.y}
-	 t.lbean=nil
+		t.t={x=t.x,y=t.y}--tip position
+		t.lbean=nil--attached bean
+		
+		t.hit=function()
+			t.ext=false
+			sfx(4)
+		end
 	 
 		t.update=function()
 			if(t==nil)return
@@ -220,6 +235,7 @@ function makeplayer()
 		 if t.l<=0 then
 		 	t=nil
 		 	p.tongue=nil
+		 	sfx(-1,2)
 		 	if lbean != nil then
 		 		p.e=20
 		 		del(actors,lbean)
@@ -234,16 +250,18 @@ function makeplayer()
 		 t.t.x=p.f and t.x+t.l or t.x-t.l
 		 
 		 --retract if we hit the edge
-		 if(t.t.y<=0)t.ext=false
-		 if(t.t.x<=1)t.ext=false
-		 if(t.t.x>=127)t.ext=false
+		 if t.t.y<=0 or
+		    t.t.x<=1 or
+		    t.t.x>=127 then
+		    t.hit()
+		 end
 		 
 		 --bean collision
 		 if t.ext then
 		 	for b in all(beans) do
 		 		if pointinbox(t.t,b.x-2,b.y-2,10,10) then
 		 			takebean(b)
-		 			t.ext=false
+		 			t.hit()
 		 			lbean=b
 		 			break
 		 		end
@@ -270,56 +288,7 @@ function makeplayer()
 	player=p
 end
 
-function takebean(b)
-	b.a=false--disable collision
- 
- --bean abilities
- if(b.t==1)fixfloor()
-	
-	--determine points
- local pts=-1
- for k,v in pairs(pointheights) do
- 	if b.y<v and k>pts then
- 		pts=k
- 	end
- end
- 
- setscore(score+pts/10)
-	makepopup(pts,b.x,b.y)
-end
-
-function fixfloor(n)
-	n=n or 1
-	local d=0
-	local amt=0
-	while closestbrokenfloor()!=nil and amt<n do
-		repairfloor(closestbrokenfloor(),amt*15)
-		amt+=1
-	end
-end
-
-function closestbrokenfloor()
-	local f=nil
-	for fl in all(floor) do
-		if fl.a==0 and
-					(f==nil or
-					 abs(f.x-player.x)>abs(fl.x-player.x)) then
-			f=fl 
-		end
-	end
-	return f
-end
-
---sets score and changes hiscore
--- if new one is reached
-function setscore(n)
- score=n
- if score>hiscore then
- 	hiscore=score
- 	dset(1,hiscore)
- end
-end
-
+--floor-related functions
 function makefloor()
 	floor={}
 	
@@ -338,10 +307,50 @@ function makefloor()
 	end
 end
 
+--fixes n missing floor segments
+function fixfloor(n)
+	n=n or 1
+	local d=0
+	local amt=0
+	while closestbrokenfloor()!=nil and amt<n do
+		repairfloor(closestbrokenfloor(),amt*15)
+		amt+=1
+	end
+end
+
+--finds the closest missing floor
+function closestbrokenfloor()
+	local f=nil
+	for fl in all(floor) do
+		if fl.a==0 and
+					(f==nil or
+					 abs(f.x-player.x)>abs(fl.x-player.x)) then
+			f=fl 
+		end
+	end
+	return f
+end
+
 function breakfloor(f)
 	--allow for index too
 	if(type(f)=="number")f=floor[f]
 	f.a=0
+	sfx(5)
+end
+
+--is there a floor at point p?
+function flooratpoint(p)
+	for f in all(floor) do
+		if f.a==2 then
+			if p.x>f.x and
+						p.y>f.y and
+						p.x<=f.x+8 and
+						p.y<=f.y+8 then
+				return true			
+			end
+		end
+	end
+	return false
 end
 
 function repairfloor(f,d)
@@ -411,6 +420,8 @@ function makerepair(f,d,s)
 	
 	add(actors,rp)
 end
+
+--bean-related functions
 
 function makebean(x,y,t,spd)
 	local b={x=x,y=y,t=t}
@@ -503,6 +514,26 @@ function makebean(x,y,t,spd)
 	add(actors,b)
 end
 
+function takebean(b)
+	b.a=false--disable collision
+ 
+ --bean abilities
+ if(b.t==1)fixfloor()
+	
+	--determine points
+ local pts=-1
+ for k,v in pairs(pointheights) do
+ 	if b.y<v and k>pts then
+ 		pts=k
+ 	end
+ end
+ 
+ setscore(score+pts/10)
+	makepopup(pts,b.x,b.y)
+	sfx(3)
+end
+
+--score popup
 function makepopup(s,x,y)
 	local p={x=x,y=y,t=s}
 	p.cl=pointcolors[s] or {1}
@@ -526,6 +557,7 @@ function makepopup(s,x,y)
 	add(actors,p)
 end
 
+--bean 'explosion'
 function explosion(x,y)
 	local mdif=0.5
 	local mov=1.3
@@ -544,6 +576,7 @@ function explosion(x,y)
 	end
 end
 
+--generic circle particle
 function makeparticle(x,y,dx,dy,c,s,t)
  local p={x=x,y=y,dx=dx,dy=dy,c=c,s=s,t=t}
  
@@ -588,8 +621,11 @@ function updategame()
 	end
 end
 
+--all the bean spawning magic
 function spawnbean()
 	local btype=0
+
+	--ensure a special bean every once in a while
 	if(rnd(100)<5 or normstrk>15)btype=1
 	
 	local spd=beanspd+rnd(0.1)
@@ -601,14 +637,21 @@ function spawnbean()
 	beanint=(0.8/beanspd)*30
 	player.ms=playspdmod*beanspd
 	
-	if btype==0 then
-		normstrk+=1
-	else
-		normstrk=0
-	end
+	--update the number of beans since last special
+	normstrk+=(btype==0 and 1 or -normstrk)
 	
 	makebean(rnd(104)+6,-24,btype,spd)
 	bspawnt=beanint+rnd(30)
+end
+
+--sets score and changes hiscore
+-- if new one is reached
+function setscore(n)
+ score=n
+ if score>hiscore then
+ 	hiscore=score
+ 	dset(1,hiscore)
+ end
 end
 
 function drawgame()
@@ -651,20 +694,6 @@ function drawbackground()
 	end
 end
 
-function flooratpoint(p)
-	for f in all(floor) do
-		if f.a==2 then
-			if p.x>f.x and
-						p.y>f.y and
-						p.x<=f.x+8 and
-						p.y<=f.y+8 then
-				return true			
-			end
-		end
-	end
-	return false
-end
-
 --//////////////////////////////
 -- game state end
 --//////////////////////////////
@@ -679,6 +708,9 @@ function startmenu()
 	gs.draw=drawmenu
 	settrans(0)
 	makebackground()
+	
+	helppos=180
+	helptext="press ‹‘ to move and — to shoot your tongue!   eat the tasty beans - the higher they are, the more points you'll earn     if you get hit, you lose!"
 end
 
 function makebackground()
@@ -700,6 +732,12 @@ end
 
 function updatemenu()
 	if(btnp(5))startgame()
+	
+	helppos-=1
+	if(btn(4))helppos-=1
+	if helppos<=-(#helptext*4 + 24) then
+		helppos=130
+	end	
 end
 
 function drawmenu()
@@ -716,6 +754,8 @@ function drawmenu()
 	sspr(0,64,sx,sy,tx,ty,sx*scale,sy*scale)
 	
 	printb("— start",64-(15),75,7,0)
+	
+	printb(helptext,helppos,120,7,0)
 end
 
 --//////////////////////////////
@@ -907,13 +947,13 @@ __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00001111111111111100000000000000000111111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00111aaaaaaaaaaaa1100000000000000001aaaaaaaaaa1100000000000000000000000000000000000000000000000000000000000000000000000000000000
-11aaaabbbbbbbbbbaaa11000000000000001abbbbbbbbaa111000000000000000000000000000000000000000000000000000000000000000000000000000000
-1aabbbbbbbbbbbbbbbaa1100000000000001abbbbbbbbbaaa1100000000000000000000000000000000000000000000000000000000000000000000000000000
+11aaaabbbbbbbbbbaaa11000000000000001abbbbbbbbaaa11000000000000000000000000000000000000000000000000000000000000000000000000000000
+1aabbbbbbbbbbbbbbbaa1100000000000001abbbbbbbbbbaaa100000000000000000000000000000000000000000000000000000000000000000000000000000
 11abbbbbbbbbbbbbbbbaa100000000000001abbbbbbbbbbbbaa10000000000000000000000000000000000000000000000000000000000000000000000000000
 01abbbbbbbbbbbbbbbbbaa10000000000001abbbbbbbbbbbbbaa1000000000000000000000000000000000000000000000000000000000000000000000000000
 01aabbbbbbbbbbbbbbbbba11000000000001aaabbbbbaaaaabba1000000000000000000000000000000000000000000000000000000000000000000000000000
-011abbbbbbbbbbbbbbbbbaa100000001100111aabbba1111aaba1100000000000000000000000000000000000000000000000000000000000000000000000000
-001aaaaaaaaaaabbbbbbbba1000000110000011abbba10011abaa100000000000000000000000000000000000000000000000000000000000000000000000000
+011abbbbbbbbbbbbbbbbbaa100000001100111aabbba1111aabaa100000000000000000000000000000000000000000000000000000000000000000000000000
+001aaaaaaaaaaabbbbbbbba1000000110000011abbba10011abba100000000000000000000000000000000000000000000000000000000000000000000000000
 0011111111111aaabbbbbba1000000100000001abbba10001abba100000110000000000000000000000000000000000000000000000000000000000000000000
 000000000000111aabbbbba1000011100000001abbba10001abba100000011000000000000000000000000000000000000000000000000000000000000000000
 0000000000000011abbbbba1100110110000001abbba10011abaa100000001000000000000000000000000000000000000000000000000000000000000000000
@@ -1009,61 +1049,61 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 ccccccccccccccccccccccccccccccccccc11111111111111ccccccccccccccccc11111111111ccccccccccccccccccccccccccccccccccccccccccccccccccc
 ccccccccccccccccccccccccccccccccc111aaaaaaaaaaaa11cccccccccccccccc1aaaaaaaaaa11ccccccccccccccccccccccccccccccccccccccccccccccccc
-ccccccccccccccccccccccccccccccc11aaaabbbbbbbbbbaaa11cccccccccccccc1abbbbbbbbaa111ccccccccccccccccccccccccccccccccccccccccccccccc
-ccccccccccccccccccccccccccccccc1aabbbbbbbbbbbbbbbaa11ccccccccccccc1abbbbbbbbbaaa11cccccccccccccccccccccccccccccccccccccccccccccc
+ccccccccccccccccccccccccccccccc11aaaabbbbbbbbbbaaa11cccccccccccccc1abbbbbbbbaaa11ccccccccccccccccccccccccccccccccccccccccccccccc
+ccccccccccccccccccccccccccccccc1aabbbbbbbbbbbbbbbaa11ccccccccccccc1abbbbbbbbbbaaa1cccccccccccccccccccccccccccccccccccccccccccccc
 ccccccccccccccccccccccccccccccc11abbbbbbbbbbbbbbbbaa13cccccccccccc1abbbbbbbbbbbbaa1ccccccccccccccccccccccccccccccccccccccccccccc
 cccccccccccccccccccccccccccccccc1abbbbbbbbbbbbbbbbbaa1cccccccccccc1abbbbbbbbbbbbbaa1cccccccccccccccccccccccccccccccccccccccccccc
-cccccccccccccccccccccccccccccccc1aabbbbbbbbbbbbbbbbba11ccccccccccc1aaabbbbbaaaaabba13cccccccccccccccc11111cccccccccccccccccccccc
-cccccccccccccccccccccccccccccccc11abbbbbbbbbbbbbbbbbaa13cccccc11cc111aabbba1111aaba11cccccccccccccc111111111cccccccccccccccccccc
-ccccccccccccccccccccccccccccccccc1aaaaaaaaaaabbbbbbbba13ccccc1133cc311abbba13311abaa13cccccccccccc11111111111ccccccccccccccccccc
-ccccccccccccccccccccccccccccccccc11111111111aaabbbbbba13ccccc133ccccc1abbba13cc1abba13cccc11ccccc1111111111111cccccccccccccccccc
-cccccccccccccccccccccccccccccccccc333333333111aabbbbba13ccc1113cccccc1abbba13cc1abba13ccccc11ccc111111111111111ccccccccccccccccc
-cccccccccccccccccccccccccccccccccccccccccccc311abbbbba11cc11311cccccc1abbba13c11abaa13cccccc13cc111111111111111ccccccccccccccccc
-cccccccccccccccccccccccccccccccccccccccccccccc1abababaa13c133c11ccccc1abbba1111abaa113ccccc111111111111111111111cccccccccccccccc
-1ccccccccccccccccccccccccccccccccc11111ccccccc1abbbbbaa13cc3ccc13cccc1abbbbaaaaba33133ccccc133313111111111111111cccccccccccccccc
-11ccccccccccccccccccccccccccccccc11aaa13ccccc11abababa113ccccc11111cc1abbbbbbbbba3113ccc11113c1131111111111111111cccc11111cccccc
-111cccccccccccccccccccccccccccccc1aaaa13cccc11aaaba1aa133cccc11aaa111aababababaaa1133111aaa11c1131111111111111111cc111111111cccc
-111cccccccccccccccccccccccccccccc1aaaa13cc111aaaaa1a1a13cc1111aabaaa1aaabababaa1113311aaabaaa11111111111111111111c11111111111ccc
-1111ccccccccccccccccccccccccccccc1aaaa11111aaaaba1aaa113c1aa1aabbbbaa1aaaaaaaaaa113c1aabbbbbaa11111111111111111111111111111111cc
-1111cccccccccccccccccccccccccccccc1aaaaaaaaaaaaa1aabba131aaaa1bbbbbba1aaaaaaaaaaa131aabbbbbbba13111111111111111111111111111111cc
-1111cccccccccccccccccccccccccccccc1aaaaaaaaaaaaaa1aabba1aabbaa1bbbbba1aaaaaaaaaaa111abbbbbbbba131111111111111111111111111111111c
-1111cccccccccccccccccccccccccccccc1aaaaaaaaaaaa11111abbaabbaa1bababaaa1aaaa111aaaa11aabbbbbbba131111111111111111111111111111111c
-1111cccccccccccccccccccccccccccccc11aaaaaa11111333331abbbbaa1babababaa1aa11131aaaaa11aabababaa131111111111111111111111111111111c
-1111ccccccccccccccccccccccccccccccc1aaa111133333ccccc1abbaa1aaaaaaaaaa1a1133311aaaaa1ababababa131111111111111111111111111111111c
-1111ccccccccccccccccccccccccccccccc1aaa13333cccccccc1abbaa1aaaaaaaaaaa1a1331111aaaaa11aaaaaaaa131111111111111111111111111111111c
-1111cccccccccccccccccccccccccccccc11aaa1311ccc1111c1aaaba111aaaaaaaaaa1a13111111aa111aaaaaaaa1131111111111111111111111111111111c
-1111ccccccccccccccccccccccccccccc111aa113111c1aaaa1aabaa1331aaaaaaaaa11a13111111a11131aaaaaaa1331111111111111111111111111111111c
-1111ccccccccccccccccccccccccccccc111111331111aaaaaaaaaa133c11aaaaaaaa1111311111111333c11111113311111111111111111111111111111111c
-1111ccccccccccccccccccccccccccccc111333311111aaaaaaaaa133ccc11111111133333111111333cccc3333333111111111111111111111111111111111c
-1111ccccccccccccccccccccccccccccc111111111111aaaaaaaa133ccccc3333333331111111111cccccccccccccc111111111111111111111111111111111c
-1111ccccccccccccccccccccccccccccc111111111111aaaaaaa133ccccccccccc11111111111111cccccccccccccc111111111111111111111111111111111c
-1111ccccccccccccccccccccccccccccc111111111111aaaaaa133cccccccccccc11111111111111cccccccccccccc111111111111111111111111111111111c
-1111ccccccccccccccccccccccccccccc11111111111c1aaaa133ccccccccccccc11111111111111cccccccccccccc111111111111111111111111111111111c
-1111ccccccccccccccccccccccccccccc11111111111cc111133cccccccccccccc11111111111111cccccccccccccc111111111111111111111111111111111c
-1111ccccccccccccccccccccccccccccc11111111111ccc3333ccccccccccccccc11111111111111cccccccccccccc111111111111111111111111111111111c
-1111ccccccccccccccccccccccccccccc11111111111cccccccccccccccccccccc11111111111111cccccccccccccc111111111111111111111111111111111c
-1111ccccccccccccccccccccccccccccc11111111111cccccccccccccccccccccc11111111111111cccccccccccccc111111111111111111111111111111111c
-1111ccccccccccccccccccccccccccccc11111111111cccccccccccccccccccccc11111111111111cccccccccccccc111111111111111111111111111111111c
-1111ccccccccccccccccccccccccccccc11111111111ccccc0000000ccccc00000000000000000000ccccccccccccc111111111111111111111111111111111c
-1111ccccccccccccccccccccccccccccc11111111111cccc007777700ccc007707770777077707770ccccccccccccc111111111111111111111111111111111c
-1111ccccc11111ccccccccccccccccccc11111111111cccc077070770ccc070000700707070700700ccc11111ccccc111111111111111111111111111111111c
-1111ccc111111111ccccccccccccccccc11111111111ccc1077707770ccc07770070077707700070cc111111111ccc111111111111111111111111111111111c
-1111cc11111111111cccccccccccccccc11111111111cc11077070770ccc00070070070707070070c11111111111cc111111111111111111111111111111111c
-1111c1111111111111ccccccccccccccc11111111111c111007777700ccc077000700707070700701111111111111c111111111111111111111111111111111c
-1111c1111111111111cccccc11111cccc11111111111111110000000cccc0000c0000000000000001111111111111c111111111111111111111111111111111c
-1111111111111111111ccc111111111cc1111111111111111111111ccccccccccc1111111111111111111111111111111111111111111111111111111111111c
-1111111111111111111cc11111111111c1111111111111111111111ccccccccccc1111111111111111111111111111111111111111111111111111111111111c
-1111111111111111111c11111111111111111111111111111111111ccccccccccc1111111111111111111111111111111111111111111111111111111111111c
-1111111111111111111c11111111111111111111111111111111111ccc11111ccc1111111111111111111111111111111111111111111111111111111111111c
-1111111111111111111111111111111111111111111111111111111cc1111111cc1111111111111111111111111111111111111111111111111111111111111c
-1111111111111111111111111111111111111111111111111111111c111111111c1111111111111111111111111111111111111111111111111111111111111c
+cccccccccccccccccccccccccccccccc1aabbbbbbbbbbbbbbbbba11ccccccccccc1aaabbbbbaaaaabba13ccccccccccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccc11abbbbbbbbbbbbbbbbbaa13cccccc11cc111aabbba1111aabaa1ccccccccccccccccccccccccccccccccccccccccccc
+ccccccccccccccccccccccccccccccccc1aaaaaaaaaaabbbbbbbba13ccccc1133cc311abbba13311abba13cccccccccccccccccccccccccccccccccccccccccc
+ccccccccccccccccccccccccccccccccc11111111111aaabbbbbba13ccccc133ccccc1abbba13cc1abba13cccc11cccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccc333333333111aabbbbba13ccc1113cccccc1abbba13cc1abba13ccccc11ccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccc311abbbbba11cc11311cccccc1abbba13c11abaa13cccccc13cccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccccc1abababaa13c133c11ccccc1abbba1111abaa113ccccc11111cccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccc11111ccccccc1abbbbbaa13cc3ccc13cccc1abbbbaaaaba33133ccccc133313ccccccccccccccccccccccccccccccc
+ccccccccccccccccccccccccccccccccc11aaa13ccccc11abababa113ccccc11111cc1abbbbbbbbba3113ccc11113cc13ccccccccccccccccccccccccccccccc
+ccccccccccccccccccccccccccccccccc1aaaa13cccc11aaaba1aa133cccc11aaa111aababababaaa1133111aaa11ccc3ccccccccccccccccccccccccccccccc
+ccccccccccccccccccccccccccccccccc1aaaa13cc111aaaaa1a1a13cc1111aabaaa1aaabababaa1113311aaabaaa1cccccccccccccccccccccccccccccccccc
+ccccccccccccccccccccccccccccccccc1aaaa11111aaaaba1aaa113c1aa1aabbbbaa1aaaaaaaaaa113c1aabbbbbaa1ccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccc1aaaaaaaaaaaaa1aabba131aaaa1bbbbbba1aaaaaaaaaaa131aabbbbbbba13cccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccc1aaaaaaaaaaaaaa1aabba1aabbaa1bbbbba1aaaaaaaaaaa111abbbbbbbba13cccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccc1aaaaaaaaaaaa11111abbaabbaa1bababaaa1aaaa111aaaa11aabbbbbbba13cccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccc11aaaaaa11111333331abbbbaa1babababaa1aa11131aaaaa11aabababaa13cccccccccccccccccccccccccccccccc
+ccccccccccccccccccccccccccccccccccc1aaa111133333ccccc1abbaa1aaaaaaaaaa1a1133311aaaaa1ababababa13cccccccccccccccccccccccccccccccc
+ccccccccccccccccccccccccccccccccccc1aaa13333cccccccc1abbaa1aaaaaaaaaaa1a133ccc1aaaaa11aaaaaaaa13cccccccccccccccccccccccccccccccc
+ccccccccccccccccccccccccccccccccccc1aaa13ccccc1111c1aaaba111aaaaaaaaaa1a13cccc11aa111aaaaaaaa113cccccccccccccccccccccccccccccccc
+ccccccccccccccccccccccccccccccccccc1aa113cccc1aaaa1aabaa1331aaaaaaaaa11a13ccccc1a11131aaaaaaa133cccccccccccccccccccccccccccccccc
+ccccccccccccccccccccccccccccccccccc111133ccc1aaaaaaaaaa133c11aaaaaaaa11113ccccc1113331111111133ccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccc3333cccc1aaaaaaaaa133ccc11111111133333cccccc33311113333333cccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccc1aaaaaaaa133ccccc333333333ccccccccc1111111111111cccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccc1aaaaaaa133cccccccccccccccccccccccc1111111111111cccccccc11111ccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccc1aaaaaa133cccccccccccccccccccccccc111111111111111ccccc111111111ccccccccccccccccccccc
+ccccccccccccccccccccccccccccccccccccccccccccc1aaaa133ccccccccccccccccccccccccc111111111111111cccc11111111111cccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccccc111133ccccccccccccccccccccccccc11111111111111111cc1111111111111ccccccccccccccccccc
+ccccccccccccccccccccccccccccccccccccccccccccccc3333cccccccccccccccccccccccccc11111111111111111c111111111111111cccccccccccccccccc
+ccc11111cccccccccccccccccccccccccccccccccccccccccccccccc11111cccccccc11111ccc11111111111111111c111111111111111cccccccccccccccccc
+cc1111111cccccccccccccccccccccccccccccccccccccccccccccc1111111cccccc1111111cc1111111111111111111111111111111111ccccccccccccccccc
+c111111111ccccccccccccccccccccc11111cccccccccccccccccc111111111cccc111111111c1111111111111111111111111111111111ccccccccccccccccc
+11111111111ccccccccccccccccccc1111111cccccccccccc000000011111000000000000000000001111111111111111111111111111111cccccccccccccccc
+111111111111ccccccccccccccccc111111111cccccccccc0077777001110077077707770777077701111111111111111111111111111111cccccccccccccccc
+111111111111ccccc11111cccccc11111111111ccccccccc0770707701110700007007070707007001111111111111111111111111111111cccccccccccccccc
+1111111111111cc111111111cccc11111111111ccccccccc0777077701110777007007770770007011111111111111111111111111111111cccccccccccccccc
+1111111111111c11111111111cc1111111111111ccc111110770707701110007007007070707007011111111111111111111111111111111cccccccccccccccc
+11111111111111111111111111c1111111111111cc1111110077777001110770007007070707007011111111111111111111111111111111cccccccccccccccc
+11111111111111111111111111c1111111111111c11111111000000011110000100000000000000011111111111111111111111111111111cccccccccccccccc
+1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111cccccccccccccccc
+1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111cccccccccccccccc
+1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111cccccccccccccccc
+1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111cccccccccccccccc
+1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111cccccccccccccccc
+1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111cccccccccccccccc
+1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111cccccccccccccccc
+1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111ccccc11111cccccc
+1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111ccc111111111cccc
+1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111cc11111111111ccc
+1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111c1111111111111cc
 1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111c
-11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
-11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
-11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
-11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
-11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
-11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
+1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111c
 11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
 11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
 11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
@@ -1136,12 +1176,12 @@ __map__
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __sfx__
-000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+010100000752000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+010100000952006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+010d00001a1301b1311c1311d1311e1311f131201312113122131231311f001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+010200000f757000001b7560000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+010c00003561500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+010500001315300000051530000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
