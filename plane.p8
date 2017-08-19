@@ -6,7 +6,7 @@ __lua__
 cartdata("cmrn_plane")
 
 transcolor=3
-debug=false
+debug=true
 
 function _init()
 	settrans(transcolor)
@@ -46,7 +46,7 @@ function startgame()
 	bgpos=0
 	
 	fallspeed=0.5
-	fd=0--fall distance
+	fd=40--fall distance
 	wi=0
 end
 
@@ -75,9 +75,6 @@ function _ug()
 		end
 		if a.static then
 			a.y -= falldist
-			local delh=-200
-			if(a.height)delh=-a.height-20
-			if(a.y<delh)del(actors,a)
 		end
 	end
 end
@@ -93,6 +90,7 @@ function _dg()
  
  if debug then
  	print("a:"..#actors,2,2,7)
+ 	print("w:"..#walls,2,12,7)
  end
 end
 
@@ -171,7 +169,7 @@ function draw_plane(p)
 end
 
 function kill_plane(p)
-	for i=0,150 do
+	for i=0,10+rnd(20) do
 		local px=p.x+rnd(10)
 		local py=p.y+rnd(10)
 		make_particle(px,py)
@@ -202,6 +200,8 @@ function make_wall(l,t,r,b)
 	
 	w.draw=draw_wall
 	w.update=update_wall
+	w.remove=removewall
+	
 	add(actors,w)
 	add(walls,w)
 	return w
@@ -217,6 +217,8 @@ function update_wall(w)
 		w.t = w.y
 		w.b = w.t + w.h
 	end
+	
+	if(w.b<-10)w.remove(w)
 end
 
 w_tl=64
@@ -228,19 +230,19 @@ w_b={x=8,y=48}
 w_l={x=0,y=40}
 w_r={x=16,y=40}
 function draw_wall(w)
-	local width=w.r-w.l-8
+	local width=w.r-w.l-14
 	local height=w.b-w.t-8
 	
 	--edges
 	sspr(w_l.x,w_l.y,8,8,w.l,w.t+8,8,height)
-	sspr(w_r.x,w_r.y,8,8,w.r,w.t+8,8,height)
+	sspr(w_r.x,w_r.y,8,8,w.r-6,w.t+8,8,height)
 	sspr(w_t.x,w_t.y,8,8,w.l+8,w.t,width,8)
 	sspr(w_b.x,w_b.y,8,8,w.l+8,w.b,width,8)
 	--corners
 	spr(w_tl,w.l,w.t)
-	spr(w_tr,w.r,w.t)
+	spr(w_tr,w.r-6,w.t)
 	spr(w_bl,w.l,w.b)
-	spr(w_br,w.r,w.b)
+	spr(w_br,w.r-6,w.b)
 end
 
 function planeinwall(p,w)
@@ -257,8 +259,9 @@ function make_particle(x,y)
 	local mamt=2
 	p.dx=rnd(mamt)-(mamt/2)
 	p.dy=rnd(mamt)-(mamt/2)
-	p.t=30+rnd(30)
+	p.t=60+rnd(30)
 	p.s=3
+	if(rnd(100)<50)p.s=4
 	p.c=7
 	if(rnd(100)<50)p.c=6
 	
@@ -277,7 +280,7 @@ function update_particle(p)
 	p.dy*=0.93
 	
 	p.t-=1
-	p.s-=rnd(50)/250
+	p.s-=rnd(20)/100
 	if(p.t<=0 or p.s<=0)del(actors,p)
 end
 
