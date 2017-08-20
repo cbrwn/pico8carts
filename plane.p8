@@ -6,7 +6,7 @@ __lua__
 cartdata("cmrn_plane")
 
 transcolor=3
-debug=true
+debug=false
 
 function _init()
 	settrans(transcolor)
@@ -169,10 +169,10 @@ function draw_plane(p)
 end
 
 function kill_plane(p)
-	for i=0,10+rnd(20) do
-		local px=p.x+rnd(10)
-		local py=p.y+rnd(10)
-		make_particle(px,py)
+	for i=0,6+rnd(6) do
+		local px=p.x--+rnd(10)
+		local py=p.y--+rnd(10)
+		make_particle(px,py,sign(p.d))
 	end
 	del(actors,p)
 	fallspeed=0
@@ -254,12 +254,18 @@ function planeinwall(p,w)
 	return true
 end
 
-function make_particle(x,y)
-	local p={x=x,y=y}
-	local mamt=2
-	p.dx=rnd(mamt)-(mamt/2)
-	p.dy=rnd(mamt)-(mamt/2)
-	p.t=60+rnd(30)
+function make_particle(x,y,d)
+	local p={x=x,y=y,w=rnd(1)+2,h=rnd(1)+2}
+	d=d or 1
+	p.bh=p.h--base height
+	p.dx=-rnd(1)*d
+	p.dy=-rnd(1)
+	p.f=true--flipping
+	if d==0 then
+		p.dy*=1.4 --more force if plane was falling straight down
+		p.dx+=rnd(2)-1--also throw out sideways
+	end
+	p.t=600+rnd(30)
 	p.s=3
 	if(rnd(100)<50)p.s=4
 	p.c=7
@@ -272,20 +278,43 @@ function make_particle(x,y)
 	return p
 end
 
+local spinspeed=0.5
 function update_particle(p)
 	p.x+=p.dx
 	p.y+=p.dy
 	
-	p.dx*=0.93
-	p.dy*=0.93
+	p.dx*=0.98
+	p.dy-=(p.dy-0.5)*0.02
 	
-	p.t-=1
-	p.s-=rnd(20)/100
-	if(p.t<=0 or p.s<=0)del(actors,p)
+	if p.f then
+		p.h-=rnd(spinspeed)
+		if p.h<=0 then
+			p.h=0
+			p.f=false
+			if p.c==7 then
+				p.c=6
+			else
+				p.c=7
+			end
+		end
+	else
+		p.h+=rnd(spinspeed)
+		if p.h>=p.bh then
+			p.h=p.bh
+			p.f=true
+		end
+	end
+	
+	p.t-=0.5+rnd(1)
+	if(p.t<=0 or p.y>140)del(actors,p)
 end
 
 function draw_particle(p)
-	circfill(p.x,p.y,p.s,p.c)
+	--make particles sway like
+	--paper falling
+	local xs=p.x+(-sin(p.t/100)*5)
+	local ys=p.y-(sin(p.y/40))*3
+	rectfill(xs,ys,xs+p.w,ys+p.h,p.c)
 end
 --/=/=/=/=/=/=/=/=/=/=/=/=/=/=/=
 -- game state end
