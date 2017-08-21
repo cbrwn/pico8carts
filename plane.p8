@@ -95,7 +95,7 @@ function _ug()
 	spawndist+=falldist
 	if spawndist >= dbw then
 		local df=spawndist-dbw
-		spawnwall(130+df)
+		spawnwall(130-df)
 		score+=1
 		spawndist=0
 	end
@@ -243,16 +243,38 @@ end
 --spawns the next wall
 local ll=false
 function spawnwall(y)
-	wtp+=1
-	local ypos=y
-	local mpos=40+rnd(50)
-	local left=not ll
-	ll=left
-	local xpos=left and mpos or (128-mpos)
-	local opos=left and -10 or 138
-	make_wall(left and opos or xpos,ypos,left and xpos or opos,ypos+wallheight)
+	local kind=0--type of wall
 	
-	if wtp>=29 then
+	--chance for double wall
+	if(rnd(100)<25)kind=1
+	--big walls at end of phase
+	if(wtp>19)kind=2
+	
+	local mpos=40+rnd(50)
+	if kind==0 then--single wall
+		local left=not ll
+		ll=left
+		local xpos=left and mpos or (128-mpos)
+		local opos=left and -10 or 138
+		
+		make_wall(left and opos or xpos,y,left and xpos or opos,y+wallheight)
+	elseif kind==1 then--double wall
+		local gap=(40+rnd(20))/2
+		
+		--left wall
+		make_wall(-10,y,mpos-gap,y+wallheight)
+		--right wall
+		make_wall(mpos+gap,y,138,y+wallheight)
+	elseif kind==2 then
+		--dbw <- distance between
+		local wdth=30
+		local hght=dbw-8
+		make_wall(-10,y,wdth,y+hght)
+		make_wall(128-wdth,y,138,y+hght)
+	end
+	
+	wtp+=1
+	if wtp>29 then
 		wtp=0
 		wallheight+=4
 	end
