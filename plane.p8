@@ -73,17 +73,16 @@ function _ug()
 	--window stuff
 	windist+=bgd
 	if windist >= 130 then
+		--switching sides
 		if winpos == 50 then
 			winpos=8
 		else
 			winpos=50
 		end
-		--add the decimal of background
-		--pos to try to minimize separate movement
-		--(window and bg moving at different
-		-- times due to decimals)
-		local bgf=bgd-flr(bgd)
-		make_window(winpos,bgpos+1138)
+		--add to bgpos to help fix
+		-- decimals making windows
+		-- move weirdly
+		make_window(winpos,bgpos+138)
 		windist=0
 	end
 	for w in all(windows) do
@@ -92,6 +91,7 @@ function _ug()
 	end
 	
 	fd+=falldist
+	
 	spawndist+=falldist
 	if spawndist >= dbw then
 		local df=spawndist-dbw
@@ -136,108 +136,13 @@ function _dg()
  end
  
  local tscore=score
- if(tscore<0)  tscore=0
- if(tscore>999)tscore=999
+ if(tscore<0)  tscore=0--no negatives
+ if(tscore>999)tscore=999--was max score in original
  pnumc(padnumber(tscore,3),64,8)
  
  if plane.dead then
  	print("— to start again",30,110,7)
  end
-end
-
---plane stuff
-function makeplane()
-	local p={}
-	p.x=-10
-	p.y=32
-	p.c=0--cooldown
-	p.hb={x=p.x-6,y=p.y,w=12,h=12}
-	p.d=4
-	p.dead=false
-	
-	--sprites
-	p.s={}
-	p.s[0]={x=8 ,y=0,w=15,h=16,xo=0, yo=0}
-	p.s[1]={x=24,y=0,w=15,h=18,xo=0, yo=2}
-	p.s[2]={x=40,y=0,w=19,h=17,xo=-1,yo=3}
-	p.s[3]={x=60,y=0,w=23,h=15,xo=0, yo=5}
-	p.s[4]={x=84,y=0,w=24,h=13,xo=0, yo=5}
-	
-	p.draw=draw_plane
-	p.update=update_plane
-	p.kill=kill_plane
-	
-	p.starting=true
-	
-	add(actors,p)
-	return p
-end
-
-function update_plane(p)
-	if p.starting then
-		p.x+=1
-		p.y+=0.2
-		if(p.x>40)p.starting=false
-		return
-	end
-	
-	p.x+=1*sign(p.d)
-	--directions
-	if btn(0) and p.c<=0 then
-		p.d-=1
-		p.c=(p.d==0) and 6 or 3--more delay when it's straight down
-	end
-	if btn(1) and p.c<=0 then
-		p.d+=1
-		p.c=(p.d==0) and 6 or 3
-	end
-	if(not(btn(1) or btn(0)))p.c=0
-	if abs(p.d)>4 then
-		p.d=4*sign(p.d)
-		p.c=0
-	end
-	if(p.c>0)p.c-=1
-	
-	--update hitbox
-	local bh=12/max(abs(p.d/2),1)
-	p.hb={x=p.x-6,y=p.y,w=12,h=bh}
-	
-	--wall collision
-	for w in all(walls) do
-		if planeinwall(p,w) then
-			p.kill(p)
-			break
-		end
-	end
-	
-	--edge collision
-	if(p.hb.x<0 or p.hb.x+p.hb.w>128)p.kill(p)
-end
-
-function draw_plane(p)
-	if(p.starting)clip(windows[1].x+11,0,128,128)
-	local ts=p.s[abs(p.d)]
-	local flp=p.d<0
-	local xof=ts.xo*sign(p.d)
-	sspr(ts.x,ts.y,ts.w,ts.h,p.x-flr(ts.w/2)-xof,p.y-ts.yo,ts.w,ts.h,flp,false)
-	
-	--hitbox square
-	if debug then
-	 rect(p.hb.x,p.hb.y,p.hb.x+p.hb.w,p.hb.y+p.hb.h,8)
-	end
-	
-	if(p.starting)clip()
-end
-
-function kill_plane(p)
-	for i=0,6+rnd(6) do
-		local px=p.x--+rnd(10)
-		local py=p.y--+rnd(10)
-		make_particle(px,py,sign(p.d))
-	end
-	p.dead=true
-	del(actors,p)
-	fallspeed=0
 end
 
 --spawns the next wall
@@ -276,13 +181,137 @@ function spawnwall(y)
 	
 	wtp+=1
 	if wtp>29 then
+		--start new phase
 		wtp=0
 		wallheight+=4
-		fallspeed+=0.08
+		fallspeed+=0.1
 	end
 end
 
---wall stuff
+---------
+--plane--
+---------
+
+function makeplane()
+	local p={}
+	p.x=-10
+	p.y=32
+	p.c=0--cooldown
+	p.hb={x=p.x-6,y=p.y,w=12,h=12}--hitbox
+	p.d=4--direction - start on 4 to fly through window
+	p.dead=false
+	
+	--sprites
+	-- define them like this so we
+	-- can use different sized sprites
+	-- for different directions
+	p.s={}
+	p.s[0]={x=8 ,y=0,w=15,h=16,xo=0, yo=0}
+	p.s[1]={x=24,y=0,w=15,h=18,xo=0, yo=2}
+	p.s[2]={x=40,y=0,w=19,h=17,xo=-1,yo=3}
+	p.s[3]={x=60,y=0,w=23,h=15,xo=0, yo=5}
+	p.s[4]={x=84,y=0,w=24,h=13,xo=0, yo=5}
+	
+	p.draw=draw_plane
+	p.update=update_plane
+	p.kill=kill_plane
+	
+	--is in into sequence
+	p.starting=true
+	
+	add(actors,p)
+	return p
+end
+
+function update_plane(p)
+	if p.starting then
+		--start sequence(fly through window)
+		p.x+=1
+		p.y+=0.2
+		if(p.x>40)p.starting=false
+		return
+	end
+	
+	--move a constant speed horizontally
+	-- so movement only adjusts vertical speed
+	p.x+=1*sign(p.d)
+	
+	--directions
+	if btn(0) and p.c<=0 then
+		p.d-=1
+		p.c=(p.d==0) and 6 or 3--more delay when it's straight down
+	end
+	if btn(1) and p.c<=0 then
+		p.d+=1
+		p.c=(p.d==0) and 6 or 3
+	end
+	if(not(btn(1) or btn(0)))p.c=0
+	if abs(p.d)>4 then
+		p.d=4*sign(p.d)
+		p.c=0
+	end
+	if(p.c>0)p.c-=1
+	
+	--update hitbox
+	local bh=12/max(abs(p.d/2),1)
+	p.hb={x=p.x-6,y=p.y,w=12,h=bh}
+	
+	--wall collision
+	for w in all(walls) do
+		if planeinwall(p,w) then
+			p.kill(p)
+			break
+		end
+	end
+	
+	--edge collision
+	if(p.hb.x<0 or p.hb.x+p.hb.w>128)p.kill(p)
+end
+
+function draw_plane(p)
+	--clip at edge of window to seem like
+	-- it's flying in from outside
+	if(p.starting)clip(windows[1].x+11,0,128,128)
+	
+	local ts=p.s[abs(p.d)]--this sprite
+	local flp=p.d<0
+	local xof=ts.xo*sign(p.d)
+	sspr(ts.x,ts.y,ts.w,ts.h,p.x-flr(ts.w/2)-xof,p.y-ts.yo,ts.w,ts.h,flp,false)
+	
+	--hitbox square
+	if debug then
+	 rect(p.hb.x,p.hb.y,p.hb.x+p.hb.w,p.hb.y+p.hb.h,8)
+	end
+	
+	if(p.starting)clip()--reset clip
+end
+
+function kill_plane(p)
+	for i=0,6+rnd(6) do
+		--paper particles
+		local px=p.x
+		local py=p.y
+		make_particle(px,py,sign(p.d))
+	end
+	fallspeed=0
+	p.dead=true
+	del(actors,p)
+end
+
+--is plane p intersecting with wall w
+function planeinwall(p,w)
+	if(p.hb.x+p.hb.w<w.l)return false
+	if(p.hb.x>w.r)return false
+	if(p.hb.y+p.hb.h<w.t)return false
+	if(p.hb.y>w.b)return false
+	
+	return true
+end
+
+---------
+--walls--
+---------
+
 function make_wall(l,t,r,b)
 	local w={static=true,l=l,t=t,r=r,b=b,y=t}
 	w.h=b-t
@@ -310,19 +339,22 @@ function update_wall(w)
 	if(w.b<-10)w.remove(w)
 end
 
-w_tl=64
-w_tr=66
-w_bl=96
-w_br=98
-w_t={x=8,y=32}
-w_b={x=8,y=48}
-w_l={x=0,y=40}
-w_r={x=16,y=40}
+--sprite info
+w_tl=64--top left corner
+w_tr=66--top right corner
+w_bl=96--bottom left corner
+w_br=98--bottom right corner
+w_t={x=8,y=32}--top edge
+w_b={x=8,y=48}--bottom edge
+w_l={x=0,y=40}--left edge
+w_r={x=16,y=40}--right edge
 function draw_wall(w)
 	local width=w.r-w.l-14
 	local height=w.b-w.t-8
 	
 	--edges
+	-- use sspr for these so we can
+	-- stretch them as much as we need
 	sspr(w_l.x,w_l.y,8,8,w.l,w.t+8,8,height)
 	sspr(w_r.x,w_r.y,8,8,w.r-6,w.t+8,8,height)
 	sspr(w_t.x,w_t.y,8,8,w.l+8,w.t,width,8)
@@ -334,14 +366,9 @@ function draw_wall(w)
 	spr(w_br,w.r-6,w.b)
 end
 
-function planeinwall(p,w)
-	if(p.hb.x+p.hb.w<w.l)return false
-	if(p.hb.x>w.r)return false
-	if(p.hb.y+p.hb.h<w.t)return false
-	if(p.hb.y>w.b)return false
-	
-	return true
-end
+-------------------
+--paper particles--
+-------------------
 
 function make_particle(x,y,d)
 	local p={x=x,y=y,w=rnd(1)+2,h=rnd(1)+2}
@@ -373,13 +400,19 @@ function update_particle(p)
 	p.y+=p.dy
 	
 	p.dx*=0.98
+	--limit y velocity because
+	-- paper is light
 	p.dy-=(p.dy-0.5)*0.02
 	
 	if p.f then
+		--is flipping(shrinking vertically)
 		p.h-=rnd(spinspeed)
 		if p.h<=0 then
 			p.h=0
 			p.f=false
+			--other side of paper is a
+			-- different colour
+			-- for some reason
 			if p.c==7 then
 				p.c=6
 			else
@@ -387,6 +420,7 @@ function update_particle(p)
 			end
 		end
 	else
+		--expanding vertically
 		p.h+=rnd(spinspeed)
 		if p.h>=p.bh then
 			p.h=p.bh
@@ -394,6 +428,9 @@ function update_particle(p)
 		end
 	end
 	
+	--add some variance to time
+	-- to make swaying less
+	-- predictable
 	p.t-=0.5+rnd(1)
 	if(p.t<=0 or p.y>140)del(actors,p)
 end
@@ -406,6 +443,10 @@ function draw_particle(p)
 	rectfill(xs,ys,xs+p.w,ys+p.h,p.c)
 end
 
+----------
+--window--
+----------
+
 function make_window(x,y)
 	local w={x=x,y=y}
 	
@@ -415,14 +456,45 @@ function make_window(x,y)
 	return w
 end
 
-local wspritep={x=0, y=80}
-local wsprites={x=64,y=48}
+local wspritep={x=0, y=80}--window sprite pos
+local wsprites={x=64,y=48}--window sprite size
 function draw_window(w)
 	--border rects
 	rectfill(w.x,w.y,w.x+wsprites.x+5,w.y+wsprites.y+5,5)
 	rectfill(w.x+1,w.y+1,w.x+wsprites.x+4,w.y+wsprites.y+4,6)
 	rectfill(w.x+2,w.y+2,w.x+wsprites.x+3,w.y+wsprites.y+3,0)
 	sspr(wspritep.x,wspritep.y,wsprites.x,wsprites.y,w.x+3,w.y+3)
+end
+
+------------------
+--custom numbers--
+------------------
+
+cnstart={x=0,y=64}
+cnwidth =12
+cnheight=16
+
+--prints number n in our custom font
+function pnum(n,x,y)
+	n=n..""
+	for i=1,#n do
+		local dig=sub(n,i,i)
+		pdigit(dig,x + ((i-1)*cnwidth),y)
+	end
+end
+
+--pnum but centered
+function pnumc(n,x,y)
+	local tx=x - (#(n.."")*cnwidth)/2
+	pnum(n,tx,y)
+end
+
+--prints one number at x,y
+function pdigit(n,x,y)
+	n=n+0
+	local sprx=cnstart.x+(cnwidth*n)
+	local spry=cnstart.y
+	sspr(sprx,spry,cnwidth,cnheight,x,y)
 end
 --/=/=/=/=/=/=/=/=/=/=/=/=/=/=/=
 -- game state end
@@ -504,45 +576,6 @@ end
 
 function keypressed(v)
 	return intable(v,keyspressed)
-end
-
---custom numbers
-cnstart={x=0,y=64}
-cnwidth =12
-cnheight=16
-
---prints number n in our custom font
-function pnum(n,x,y)
-	n=n..""
-	for i=1,#n do
-		local dig=sub(n,i,i)
-		pdigit(dig,x + ((i-1)*cnwidth),y)
-	end
-end
-
---pnum but centered
-function pnumc(n,x,y)
-	local tx=x - (#(n.."")*cnwidth)/2
-	pnum(n,tx,y)
-end
-
---prints one number at x,y
-function pdigit(n,x,y)
-	n=n+0
-	local sprx=cnstart.x+(cnwidth*n)
-	local spry=cnstart.y
-	sspr(sprx,spry,cnwidth,cnheight,x,y)
-end
-
---pads number with 0s until it's
---d characters long
-function padnumber(n,d)
-	d=d or 3
-	n=n..""
-	while #n < d do
-		n = "0"..n
-	end
-	return n
 end
 __gfx__
 00000000000033333330000333333333333300033333333333003333333333333333003333333333333333333003333333333333333333333333333333333333
