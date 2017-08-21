@@ -55,7 +55,7 @@ function startgame()
 	phase=0
 	wtp=0--walls this phase
 	
-	score=-2
+	score=-1
 end
 
 function _ug()
@@ -83,7 +83,7 @@ function _ug()
 		--(window and bg moving at different
 		-- times due to decimals)
 		local bgf=bgd-flr(bgd)
-		make_window(winpos,130+bgf)
+		make_window(winpos,bgpos+1138)
 		windist=0
 	end
 	for w in all(windows) do
@@ -269,6 +269,7 @@ function spawnwall(y)
 		--dbw <- distance between
 		local wdth=30
 		local hght=dbw-8
+		if(wtp==29)hght/=2
 		make_wall(-10,y,wdth,y+hght)
 		make_wall(128-wdth,y,138,y+hght)
 	end
@@ -277,6 +278,7 @@ function spawnwall(y)
 	if wtp>29 then
 		wtp=0
 		wallheight+=4
+		fallspeed+=0.08
 	end
 end
 
