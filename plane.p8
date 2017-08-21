@@ -23,22 +23,12 @@ function _update60()
 end
 
 function _draw()
-	--cls()
 	if(gs.draw)gs.draw()
 end
 
 --==============================
 -- game state start
 --==============================
-
---wall sequence
-local sq={{f=0,d=64,l=false},
-          {f=60,d=64,l=true},
-          {f=120,d=64,l=false},
-          {f=180,d=64,l=true},
-          {f=240,d=64,l=false},
-          {f=300,d=64,l=true},
-          {f=360,d=-10,l=true}}--end
 
 function startgame()
 	gs={}
@@ -59,7 +49,11 @@ function startgame()
 	
 	fallspeed=0.5
 	fd=0--fall distance
-	wi=1
+	spawndist=0
+	dbw=80--distance between walls
+	
+	phase=0
+	wtp=0--walls this phase
 	
 	score=-2
 end
@@ -98,7 +92,13 @@ function _ug()
 	end
 	
 	fd+=falldist
-	spawnwall(150)
+	spawndist+=falldist
+	if spawndist >= dbw then
+		local df=spawndist-dbw
+		spawnwall(130+df)
+		score+=1
+		spawndist=0
+	end
 	
 	for a in all(actors) do
 		if a.update then
@@ -241,37 +241,20 @@ function kill_plane(p)
 end
 
 --spawns the next wall
+local ll=false
 function spawnwall(y)
-	local fnd=false
-	
-	for i=wi,#sq do
-		if fd>sq[i].f then
-			wi=i
-			fnd=true
-			break
-		end
-	end
-	if(not fnd)return
-	score+=1
-	
+	wtp+=1
 	local ypos=y
-	local mpos=sq[wi].d
-	local left=sq[wi].l
+	local mpos=40+rnd(50)
+	local left=not ll
+	ll=left
 	local xpos=left and mpos or (128-mpos)
 	local opos=left and -10 or 138
 	make_wall(left and opos or xpos,ypos,left and xpos or opos,ypos+wallheight)
-	wi+=1
 	
-	--end of sequence
-	if wi>#sq then
-		if wallheight<24 then
-			wallheight+=4
-		else
-			fallspeed+=0.05
-		end
-		fd=0
-		wi=1
-		score-=1
+	if wtp>=29 then
+		wtp=0
+		wallheight+=4
 	end
 end
 
