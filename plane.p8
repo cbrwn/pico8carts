@@ -13,7 +13,7 @@ transcolor=3
 
 function _init()
 	settrans(transcolor)
- startgame()
+ startmenu()
 end
 
 function _update60()
@@ -24,6 +24,75 @@ end
 function _draw()
 	if(gs.draw)gs.draw()
 end
+
+--==============================
+-- menu state start
+--==============================
+
+function startmenu()
+	gs={}
+	gs.update=_um
+	gs.draw=_dm
+	actors={}
+	
+	for i=0,10+rnd(10) do
+		makemplane()
+	end
+end
+
+function _um()
+	if(btnp(5))startgame()
+	if(btnp(4))startmenu()
+	
+	for a in all(actors) do
+		if(a.update)a.update(a)
+	end
+end
+
+function _dm()
+	cls(12)
+	
+	for a in all(actors) do
+		if(a.draw)a.draw(a)
+	end
+	
+	print("papr plan "..#actors, 20, 20, 7)
+	
+	print("— start",30,50,7)
+end
+
+--------------
+--menu plane--
+--------------
+function makemplane()
+	local mplane={x=128+rnd(20),y=rnd(140)-20}
+	
+	mplane.dy=0.1+rnd(0.3)
+	mplane.dx=2-rnd(4)
+	
+	mplane.update=updatemplane
+	mplane.draw=drawmplane
+	
+	add(actors,mplane)
+end
+
+function updatemplane(p)
+	p.y+=p.dy
+	p.x+=p.dx
+	
+	if(p.y>128)p.y=-30
+	if(p.x<-30)p.x=130
+	if(p.x>134)p.x=-28
+end
+
+function drawmplane(p)
+	local flp=(p.dx<0)
+	sspr(84,0,24,13,p.x,p.y,24,13,flp)
+end
+
+--/=/=/=/=/=/=/=/=/=/=/=/=/=/=/=
+-- menu state end
+--/=/=/=/=/=/=/=/=/=/=/=/=/=/=/=
 
 --==============================
 -- game state start
@@ -115,7 +184,7 @@ function _ug()
 	end
 	
 	if (btnp(5) or btnp(4)) and plane.dead then
-		startgame()
+		startmenu()
 	end
 end
 
