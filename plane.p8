@@ -69,6 +69,7 @@ function makemplane()
 	
 	mplane.dy=0.1+rnd(0.3)
 	mplane.dx=2-rnd(4)
+	if(abs(mplane.dx)<0.5)mplane.dx=0.5*sign(mplane.dx)
 	
 	mplane.update=updatemplane
 	mplane.draw=drawmplane
@@ -108,7 +109,6 @@ function startgame()
 	plane=makeplane()
 	
 	windows={}
-	make_window(8,20)
 	windist=40
 	winpos=0
 	
@@ -125,6 +125,8 @@ function startgame()
 	
 	score=-1
 	hiscore=dget(1)
+	
+	make_window(8,20)
 end
 
 function _ug()
@@ -243,19 +245,21 @@ function spawnwall(y)
 		--right wall
 		make_wall(mpos+gap,y,138,y+wallheight)
 	elseif kind==2 then
-		--dbw <- distance between
-		local wdth=30
+		local wdth=40
 		local hght=dbw-8
-		if(wtp==29)hght/=2
-		make_wall(-10,y,wdth,y+hght)
-		make_wall(128-wdth,y,138,y+hght)
+		if wtp != 29 then
+			make_wall(-10,y,wdth,y+hght)
+			make_wall(128-wdth,y,138,y+hght)
+		end
 	end
 	
 	wtp+=1
 	if wtp>29 then
 		--start new phase
+		phase+=1
 		wtp=0
-		wallheight+=4
+		--cap wallheight but not speed
+		if(wallheight<36)wallheight+=8
 		fallspeed+=0.1
 	end
 end
@@ -324,6 +328,13 @@ function update_plane(p)
 	end
 	if(p.c>0)p.c-=1
 	
+	--sfx
+	if keypressed(0) and p.d>-4 then
+		sfx(0)
+	elseif keypressed(1) and p.d<4 then
+		sfx(0)
+	end
+	
 	--update hitbox
 	local bh=12/max(abs(p.d/2),1)
 	p.hb={x=p.x-6,y=p.y,w=12,h=bh}
@@ -354,6 +365,9 @@ function draw_plane(p)
 end
 
 function kill_plane(p)
+	if true then
+		return
+	end
 	for i=0,6+rnd(6) do
 		--paper particles
 		local px=p.x
@@ -517,6 +531,46 @@ end
 
 function make_window(x,y)
 	local w={x=x,y=y}
+	w.by=y
+	
+	w.sky=12
+	if phase then
+		if(phase>=2)w.sky=1
+		if(phase>=4)w.sky=0
+	end
+	
+	w.cloud={}
+	
+	if w.sky==0 then
+		for i=0,1+rnd(20) do
+			local c={}
+			c.x=-30+rnd(100)
+			c.y=flr(-30+rnd(70))
+			c.c=7
+			c.s=rnd(2)
+			c.d=5
+			
+			add(w.cloud,c)
+		end
+	end
+	
+	for j=0,rnd(2) do
+		local ox=0 + rnd(64)
+		local oy=0 + rnd(48)
+		for i=0,3+rnd(2) do
+			local c={}
+			c.x=ox
+			c.s=3+rnd(6)
+			c.y=flr(oy-c.s/2 + rnd(2))
+			c.c=7
+			if(w.sky==1 and rnd(100)<99)c.c=6
+			if(w.sky==0)c.c=5
+			c.d=10
+			
+			ox+=c.s/2
+			add(w.cloud,c)
+		end
+	end
 	
 	w.draw=draw_window
 	
@@ -532,6 +586,14 @@ function draw_window(w)
 	rectfill(w.x+1,w.y+1,w.x+wsprites.x+4,w.y+wsprites.y+4,6)
 	rectfill(w.x+2,w.y+2,w.x+wsprites.x+3,w.y+wsprites.y+3,0)
 	sspr(wspritep.x,wspritep.y,wsprites.x,wsprites.y,w.x+3,w.y+3)
+	
+	clip(w.x+11,w.y+3,56,42)
+	rectfill(0,0,127,127,w.sky)
+	local df=w.by-w.y
+	for c in all(w.cloud) do
+		circfill(w.x+c.x,w.y+c.y+(df/c.d),c.s,c.c)
+	end
+	clip()
 end
 
 ------------------
@@ -980,7 +1042,7 @@ __map__
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __sfx__
-000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+010200000f614196102f6150f6042f6042f6051560611603246001f6002260025600296002b6002d600336003d6003f6000460000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
