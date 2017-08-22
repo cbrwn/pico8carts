@@ -33,62 +33,18 @@ function startmenu()
 	gs={}
 	gs.update=_um
 	gs.draw=_dm
-	actors={}
-	
-	for i=0,10+rnd(10) do
-		makemplane()
-	end
 end
 
 function _um()
 	if(btnp(5))startgame()
 	if(btnp(4))startmenu()
-	
-	for a in all(actors) do
-		if(a.update)a.update(a)
-	end
 end
 
 function _dm()
 	cls(12)
-	
-	for a in all(actors) do
-		if(a.draw)a.draw(a)
-	end
-	
-	print("papr plan "..#actors, 20, 20, 7)
+	print("papr plan ", 20, 20, 7)
 	
 	print("— start",30,50,7)
-end
-
---------------
---menu plane--
---------------
-function makemplane()
-	local mplane={x=128+rnd(20),y=rnd(140)-20}
-	
-	mplane.dy=0.1+rnd(0.3)
-	mplane.dx=2-rnd(4)
-	if(abs(mplane.dx)<0.5)mplane.dx=0.5*sign(mplane.dx)
-	
-	mplane.update=updatemplane
-	mplane.draw=drawmplane
-	
-	add(actors,mplane)
-end
-
-function updatemplane(p)
-	p.y+=p.dy
-	p.x+=p.dx
-	
-	if(p.y>128)p.y=-30
-	if(p.x<-30)p.x=130
-	if(p.x>134)p.x=-28
-end
-
-function drawmplane(p)
-	local flp=(p.dx<0)
-	sspr(84,0,24,13,p.x,p.y,24,13,flp)
 end
 
 --/=/=/=/=/=/=/=/=/=/=/=/=/=/=/=
@@ -112,19 +68,21 @@ function startgame()
 	windist=40
 	winpos=0
 	
-	wallheight=4
-	bgpos=0
-	
 	fallspeed=0.5
 	fd=0--fall distance
 	spawndist=0
+	bgpos=0
+
 	dbw=80--distance between walls
+	wallheight=4
 	
 	phase=0
 	wtp=0--walls this phase
 	
 	score=-1
 	hiscore=dget(1)
+	
+	deadtime=0
 	
 	make_window(8,20)
 end
@@ -163,6 +121,7 @@ function _ug()
 	
 	fd+=falldist
 	
+	--wall spawning
 	spawndist+=falldist
 	if spawndist >= dbw then
 		local df=spawndist-dbw
@@ -185,8 +144,9 @@ function _ug()
 		end
 	end
 	
-	if (btnp(5) or btnp(4)) and plane.dead then
-		startmenu()
+	if plane.dead then
+	 if(btnp(5) or btnp(4))startmenu()
+	 deadtime+=1
 	end
 end
 
@@ -210,6 +170,12 @@ function _dg()
  --hiscore
  local hs="high score "..hiscore
  print(hs,128 - (#hs * 4),1,7)
+ 
+ if deadtime>60*5 then
+ 	if sin(deadtime/120)>-0.5 then
+ 		printbc("—/Ž to restart",61,80,7,0)
+ 	end
+ end
 end
 
 function clampedscore()
@@ -365,9 +331,6 @@ function draw_plane(p)
 end
 
 function kill_plane(p)
-	if true then
-		return
-	end
 	for i=0,6+rnd(6) do
 		--paper particles
 		local px=p.x
@@ -600,8 +563,9 @@ end
 --game over text--
 ------------------
 
+local gos={x=24,y=32,w=83,h=16}
 function make_gameover()
-	local g={x=26,y=-20,dx=0,dy=0}
+	local g={x=64-gos.w/2,y=-20,dx=0,dy=0}
 	
 	g.ground=54
 	g.falling=true
@@ -630,7 +594,6 @@ function update_gameover(g)
 	g.y+=g.dy
 end
 
-local gos={x=24,y=32,w=83,h=16}
 function draw_gameover(g)
 	sspr(gos.x,gos.y,gos.w,gos.h,g.x,g.y)
 end
@@ -712,6 +675,23 @@ function padnumber(n,l)
 		s = "0"..s
 	end
 	return s
+end
+
+function printb(s,x,y,c,b)
+	b=b or 0
+	print(s,x-1,y,b)
+	print(s,x+1,y,b)
+	print(s,x,y-1,b)
+	print(s,x,y+1,b)
+	print(s,x+1,y+1,b)
+	print(s,x-1,y-1,b)
+	print(s,x-1,y+1,b)
+	print(s,x+1,y-1,b)
+	print(s,x,y,c)
+end
+
+function printbc(s,x,y,c,b)
+	printb(s,x-(#s*2),y,c,b)
 end
 
 --is value v in table tab
