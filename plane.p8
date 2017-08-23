@@ -13,7 +13,7 @@ transcolor=3
 
 function _init()
 	settrans(transcolor)
- startmenu()
+ startgame()
 end
 
 function _update60()
@@ -23,28 +23,6 @@ end
 
 function _draw()
 	if(gs.draw)gs.draw()
-end
-
---==============================
--- menu state start
---==============================
-
-function startmenu()
-	gs={}
-	gs.update=_um
-	gs.draw=_dm
-end
-
-function _um()
-	if(btnp(5))startgame()
-	if(btnp(4))startmenu()
-end
-
-function _dm()
-	cls(12)
-	print("papr plan ", 20, 20, 7)
-	
-	print("— start",30,50,7)
 end
 
 --/=/=/=/=/=/=/=/=/=/=/=/=/=/=/=
@@ -90,6 +68,8 @@ end
 function _ug()
 	local tfs=abs(abs(plane.d)-5)/2
 	if(plane.starting)tfs=0
+	
+	if(plane.frozen)deadtime+=1
 	
 	local falldist=fallspeed*tfs
 	
@@ -145,7 +125,7 @@ function _ug()
 	end
 	
 	if plane.dead then
-	 if(btnp(5) or btnp(4))startmenu()
+	 if(btnp(5) or btnp(4))startgame()
 	 deadtime+=1
 	end
 end
@@ -171,9 +151,15 @@ function _dg()
  local hs="high score "..hiscore
  print(hs,128 - (#hs * 4),1,7)
  
- if deadtime>60*5 then
+ if deadtime>60*5 and plane.dead then
  	if sin(deadtime/120)>-0.5 then
  		printbc("—/Ž to restart",61,80,7,0)
+ 	end
+ end
+ 
+ if plane.frozen then
+ 	if sin((deadtime-50)/100)>-0.7 then
+ 		printbc("—/Ž to start",61,100,7,0)
  	end
  end
 end
@@ -197,7 +183,10 @@ function spawnwall(y)
 	
 	local mpos=40+rnd(50)
 	if kind==0 then--single wall
+		local samesidechance=3
+		if(phase>4)samesidechance=40
 		local left=not ll
+		if(rnd(100)<samesidechance)left=not left
 		ll=left
 		local xpos=left and mpos or (128-mpos)
 		local opos=left and -10 or 138
@@ -242,6 +231,7 @@ function makeplane()
 	p.hb={x=p.x-6,y=p.y,w=12,h=12}--hitbox
 	p.d=4--direction - start on 4 to fly through window
 	p.dead=false
+	p.frozen=true
 	
 	--sprites
 	-- define them like this so we
@@ -266,6 +256,10 @@ function makeplane()
 end
 
 function update_plane(p)
+	if p.frozen then
+		if(btnp(4) or btnp(5))p.frozen=false
+		return
+	end
 	if p.starting then
 		--start sequence(fly through window)
 		p.x+=1
@@ -338,6 +332,7 @@ function kill_plane(p)
 		make_particle(px,py,sign(p.d))
 	end
 	fallspeed=0
+	deadtime=0
 	p.dead=true
 	del(actors,p)
 	make_gameover()
@@ -522,7 +517,7 @@ function make_window(x,y)
 		local oy=0 + rnd(48)
 		for i=0,3+rnd(2) do
 			local c={}
-			c.x=ox
+			c.x=flr(ox)
 			c.s=3+rnd(6)
 			c.y=flr(oy-c.s/2 + rnd(2))
 			c.c=7
@@ -554,6 +549,7 @@ function draw_window(w)
 	rectfill(0,0,127,127,w.sky)
 	local df=w.by-w.y
 	for c in all(w.cloud) do
+		if(c.d==10)c.x-=0.04
 		circfill(w.x+c.x,w.y+c.y+(df/c.d),c.s,c.c)
 	end
 	clip()
